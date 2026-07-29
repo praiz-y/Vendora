@@ -36,3 +36,8 @@ Thumbs.db
 
 # Prisma
 backend/prisma/*.db
+
+# Local-only project notes (not part of the tracked repo)
+.ai/
+docs/
+thrill1.txt
