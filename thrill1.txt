@@ -1,0 +1,150 @@
+
+
+
+1. Tech stack
+
+>Frontend: Next.js
+>Backend: Express
+>Database: PostgreSQL
+>Authentication:JWT
+>Image Storage: Cloudinary
+
+2. Payment system
+>integrate real payment for now, if we cant, we simulate
+
+
+3. Seller Registration
+> Everyone registers as a buyer, then there's a become a seller bullon in the dashboard for sellersto approve
+> Admin verifies sellers
+
+4. Admin
+> Verifies products sellers upload for sell before it is public
+> Verifies users who want to be sellers
+
+5. Product Status
+>	Draft
+	Pending Review
+	Approved
+	Rejected
+	Archived
+
+6. Seller Dashboard
+>	Dashboard
+	Products
+	Orders
+	Analytics[Views, Sales, Revenue]
+	Reviews
+	Profile
+	Payouts (future)
+
+7. Order Status
+>	Pending Payment
+	Paid
+	Processing
+	Shipped
+	Delivered
+	Cancelled
+
+>
+>
+>
+>
+>
+>
+>
+
+
+
+Step 1: Finalize Next.js vs React
+
+Step 2: Finalize the complete feature scope for V1
+
+Step 3: Design the database entities and relationships
+
+Step 4: Design the multi-vendor order + checkout architecture
+
+Step 5: Define authentication and authorization flows
+
+Step 6: Define the API endpoint structure
+
+Step 7: Define the project folder architecture
+
+Step 8: Create the complete development roadmap, broken into phases.
+
+Then we can start Phase 1 and build Vendora systematically, just like we did with your other projects.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
