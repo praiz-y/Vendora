@@ -16,6 +16,9 @@ import checkoutRoutes from "../../modules/checkout/checkout.routes";
 import ordersRoutes from "../../modules/orders/orders.routes";
 import sellerOrdersRoutes from "../../modules/orders/seller/sellerOrders.routes";
 import entitlementsRoutes from "../../modules/entitlements/entitlements.routes";
+import reviewsRoutes from "../../modules/reviews/reviews.routes";
+import productReportsRoutes from "../../modules/productReports/productReports.routes";
+import adminProductReportsRoutes from "../../modules/productReports/admin/productReports.admin.routes";
 
 const router = Router();
 
@@ -36,5 +39,8 @@ router.use("/checkout", checkoutRoutes);
 router.use("/orders", ordersRoutes);
 router.use("/seller-orders", sellerOrdersRoutes);
 router.use("/entitlements", entitlementsRoutes);
+router.use("/reviews", reviewsRoutes);
+router.use("/product-reports", productReportsRoutes);
+router.use("/admin/product-reports", adminProductReportsRoutes);
 
 export default router;

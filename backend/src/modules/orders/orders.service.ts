@@ -9,7 +9,9 @@ export const orderInclude = {
   sellerOrders: {
     include: {
       store: { select: { id: true, name: true, slug: true } },
-      items: true,
+      // `review` lets the buyer UI show "leave a review" only for items
+      // that don't have one yet, without a separate lookup per item.
+      items: { include: { review: { select: { id: true } } } },
     },
   },
 } satisfies Prisma.OrderInclude;

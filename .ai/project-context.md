@@ -52,8 +52,10 @@ behaviors agreed on for V1:
   sub-module), `src/modules/marketplace/` (Phase 5 — fully public, no
   `authenticate()`), `src/modules/cart/`, `src/modules/wishlist/` (Phase 6),
   `src/modules/checkout/` (Phase 7), `src/modules/orders/` (+ its `seller/`
-  sub-module, Phase 8), `src/modules/entitlements/` (Phase 9) — feature
-  modules built on top of the Phase 0/1 foundation
+  sub-module, Phase 8), `src/modules/entitlements/` (Phase 9),
+  `src/modules/reviews/`, `src/modules/productReports/` (+ its `admin/`
+  sub-module, Phase 10) — feature modules built on top of the Phase 0/1
+  foundation
 - `src/services/paymentGateway.service.ts` — simulated payment provider
   (Phase 7), written to the interface a real provider integration would
   implement
@@ -107,12 +109,13 @@ consistent envelope (see "API Response Format" below).
 
 ## Current Development Phase
 
-**Phase 9: Digital Products — complete.** See
-[`.ai/reports/phase-9-report.md`](reports/phase-9-report.md),
+**Phase 10: Reviews + Reports — complete.** See
+[`.ai/reports/phase-10-report.md`](reports/phase-10-report.md),
+[`phase-9-report.md`](reports/phase-9-report.md),
 [`phase-8-report.md`](reports/phase-8-report.md), and
 [`phase-7-report.md`](reports/phase-7-report.md) for what was actually
 built and verified (Phase 0: `phase-0-report.md` through Phase 6:
-`phase-6-report.md` for everything earlier). Phase 10 starts next, pending
+`phase-6-report.md` for everything earlier). Phase 11 starts next, pending
 direction from the user — this project explicitly stops at the end of each
 phase for review.
 
@@ -240,7 +243,7 @@ Dashboard." Phase *numbers* elsewhere are unchanged.
 - **Automated backend tests run against a second, dedicated Postgres
   container** (`vendora-postgres-test`, port 5435) — not the dev database —
   via `backend/.env.test` and `vitest` + `supertest`. `npm test` from
-  `backend/` runs the suite (150 tests as of Phase 9).
+  `backend/` runs the suite (165 tests as of Phase 10).
 - **Store slugs are generated once, at approval, and never regenerated on
   rename** (`stores.service.generateUniqueStoreSlug`, called only from the
   admin approve flow). Marketplace/store URLs (Phase 5) will depend on slug
@@ -415,13 +418,44 @@ Dashboard." Phase *numbers* elsewhere are unchanged.
   (not application errors — check the dev-server log for genuine slow 200s
   vs. real 4xx/5xx), restart both dev servers fresh before concluding
   something is actually broken.
+- **A review's proof-of-purchase is "this specific `OrderItem`'s
+  `SellerOrder` is `DELIVERED`"** (Phase 10) — the only thing this project
+  can actually verify. `Review.orderItemId` (unique, Phase 1) is the unit
+  of "one purchase, one review," not `productId` — a buyer with two
+  separate delivered purchases of the same product can leave two reviews.
+- **Store rating is the average of each reviewed product's own average
+  rating, not a single average across every raw review** (Phase 10,
+  `reviews.service.getStoreRatingSummary`) — matches Overview §23's
+  wording and stops one high-review-volume product from dominating a
+  store's rating.
+- **Product report reasons are a fixed Zod enum validated at the request
+  layer only** (Phase 10) — the `ProductReport.reason` column stays the
+  plain string it was in Phase 1, so new reasons can be added later
+  without a migration.
+- **Report resolution targets the schema's real `PENDING/RESOLVED/DISMISSED`
+  enum** (Phase 10), not Overview §24's hedged "Submitted → Under Review →
+  Resolved" wording — that wording was explicitly marked as a "potential"
+  lifecycle with the real rules deferred to this phase, and Phase 1 had
+  already fixed the enum without an "under review" state.
+- **`orders.service.ts`'s shared `orderInclude` carries each `OrderItem`'s
+  `review` (`{id}` or `null`)** (Phase 10) rather than a separate
+  "has this been reviewed" endpoint — the buyer's order-detail page uses
+  it directly to decide whether to show "leave a review".
+- **The backend's in-memory auth rate limiter (20 req/15 min) is easy to
+  exhaust from repeated Playwright runs, not just repeated manual login
+  attempts** — every hard page navigation (`page.goto`, not an in-app
+  `Link`) re-triggers `AuthProvider`'s bootstrap `POST /auth/refresh`; a
+  script with a dozen-plus navigations across a few browser contexts can
+  cross the limit on its own. Restarting the backend dev process resets
+  the in-memory counter; this happened repeatedly during Phase 10's
+  verification pass and is expected, not a bug.
 
 ## Development Rules
 
-- Do not build feature UI (reviews/reports, seller-dashboard Analytics tab,
+- Do not build feature UI (seller-dashboard Dashboard/Analytics tabs,
   admin screens beyond seller-application review/categories/product
-  moderation/refunds-not-yet-built) until the phase that owns it — see
-  `docs/roadmap.md`.
+  moderation/product reports/refunds-not-yet-built) until the phase that
+  owns it — see `docs/roadmap.md`.
 - Payments are simulated (Phase 7); do not integrate a real provider
   without the user explicitly providing credentials and re-confirming —
   keep the schema/architecture provider-agnostic regardless.
@@ -539,12 +573,25 @@ Dashboard." Phase *numbers* elsewhere are unchanged.
   render-body `router.replace()` crash, and a disabled-query
   `isLoading`-timing bug) — see the phase reports and the Architectural
   Decisions above for each. Phase 9's own new pages
-  (`/account/library`, the product page's "already owned" state) are
-  covered by automated tests, direct API verification, and a clean
-  production build, but **not** a completed live browser click-through —
-  the session's dev environment had degraded too far by that point (see
-  "This sandbox's dev servers degrade..." above). Flagged explicitly in
-  `.ai/reports/phase-9-report.md` rather than claimed as verified.
+  (`/account/library`, the product page's "already owned" state) were not
+  given a completed live browser click-through in Phase 9's own session
+  (dev environment had degraded too far by that point) — **this gap was
+  closed in Phase 10's verification pass**, confirmed live with a freshly
+  registered buyer account.
+- **Phase 10**: buyer reviews (`POST /reviews`, `GET /reviews`,
+  `GET /reviews/me/store`) gated on the reviewed `OrderItem`'s
+  `SellerOrder` being `DELIVERED`; product/store rating aggregation wired
+  into the public marketplace endpoints; product reports
+  (`POST /product-reports`) with one active report per user per product;
+  admin report review (`GET/POST /admin/product-reports...`, the third
+  consumer of the Phase 3 admin shell's list/detail/approve-reject
+  pattern); the seller dashboard's Reviews tab is now real (was a Phase 3
+  placeholder — only Dashboard/Analytics remain, both Phase 11). 15 new
+  automated backend tests (165 total). Full details in
+  `.ai/reports/phase-10-report.md`, including the Phase 9 browser-gap
+  closure and an honest account of auth-rate-limiter flakiness hit during
+  this phase's own verification pass (resolved each time by restarting
+  the backend dev process; not a product defect).
 
 ## What Should Not Be Implemented Yet
 
@@ -554,9 +601,10 @@ Dashboard." Phase *numbers* elsewhere are unchanged.
 - Refunds (Phase 13) — the `Refund` model exists from Phase 1 but nothing
   reads/writes it yet; a paid order's only self-service action is viewing
   it, not cancelling
-- Reviews (gated on delivered orders) and product reports (Phase 10)
-- The seller dashboard's Analytics tab (placeholder — Phase 11 fills it
-  in; the Dashboard/Products/Orders/Reviews tabs are now all real) and the
+- Review editing/deletion, and seller responses to reviews — Overview §23
+  describes one-time creation only; both are unrequested scope beyond it
+- The seller dashboard's Dashboard/Analytics tabs (placeholders — Phase 11
+  fills them in; Products/Orders/Reviews/Profile are now all real) and the
   Admin Dashboard Polish phase's overview/audit-log/user-management
   screens (Phase 14)
 - Notifications UI (Phase 12) — the `Notification` model exists from

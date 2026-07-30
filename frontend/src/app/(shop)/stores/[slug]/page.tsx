@@ -42,6 +42,12 @@ export default function StoreDetailPage({ params }: { params: Promise<{ slug: st
             <p className="text-sm text-foreground/60">
               {store.businessCategory} · {store.location}
             </p>
+            {store.rating.averageRating !== null && (
+              <p className="text-sm text-foreground/70">
+                ★ {store.rating.averageRating.toFixed(1)} · {store.rating.reviewedProductCount} product
+                {store.rating.reviewedProductCount === 1 ? "" : "s"} reviewed
+              </p>
+            )}
           </div>
         </div>
 

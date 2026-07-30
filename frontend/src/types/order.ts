@@ -24,6 +24,10 @@ export interface OrderItem {
   shippingFeeSnapshot: string | null;
   storeNameSnapshot: string;
   createdAt: string;
+  // Present only once the item's SellerOrder has been delivered and the
+  // buyer has already left a review for it — null means still reviewable
+  // (once delivered) rather than "not delivered yet".
+  review: { id: string } | null;
 }
 
 export interface SellerOrder {

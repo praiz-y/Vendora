@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { buildPaginationMeta, toSkipTake, type PaginationMeta, type PaginationParams } from "../../utils/pagination";
+import { getProductRatingSummaries, getStoreRatingSummary } from "../reviews/reviews.service";
 import type { ListPublicProductsQuery } from "./marketplace.validation";
 
 // Deliberately excludes: status/rejectionReason/reviewedBy (internal
@@ -94,7 +95,10 @@ export async function listPublicProducts(params: ListPublicProductsParams) {
     prisma.product.count({ where }),
   ]);
 
-  return { products, meta: buildPaginationMeta(params, total) };
+  const ratings = await getProductRatingSummaries(products.map((p) => p.id));
+  const withRatings = products.map((p) => ({ ...p, rating: ratings.get(p.id)! }));
+
+  return { products: withRatings, meta: buildPaginationMeta(params, total) };
 }
 
 export async function getPublicProductBySlug(slug: string) {
@@ -103,11 +107,15 @@ export async function getPublicProductBySlug(slug: string) {
     select: publicProductSelect,
   });
   if (!product) throw ApiError.notFound("Product not found.", "PRODUCT_NOT_FOUND");
-  return product;
+
+  const rating = (await getProductRatingSummaries([product.id])).get(product.id)!;
+  return { ...product, rating };
 }
 
 export async function getPublicStoreBySlug(slug: string) {
   const store = await prisma.store.findFirst({ where: { slug, status: "ACTIVE" }, select: publicStoreSelect });
   if (!store) throw ApiError.notFound("Store not found.", "STORE_NOT_FOUND");
-  return store;
+
+  const rating = await getStoreRatingSummary(store.id);
+  return { ...store, rating };
 }

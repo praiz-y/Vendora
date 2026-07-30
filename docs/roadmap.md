@@ -57,8 +57,8 @@ Overview.md section 42 exactly.
 | 7 | Multi-Vendor Checkout + Payments | ✅ Complete |
 | 8 | Orders + Fulfillment | ✅ Complete |
 | 9 | Digital Products | ✅ Complete |
-| 10 | Reviews + Reports | 🔜 Next |
-| 11 | Seller Dashboard + Analytics | Planned |
+| 10 | Reviews + Reports | ✅ Complete |
+| 11 | Seller Dashboard + Analytics | 🔜 Next |
 | 12 | Notifications | Planned |
 | 13 | Refunds | Planned |
 | 14 | Admin Dashboard Polish | Planned |
@@ -187,7 +187,7 @@ enable secure download. Entitlements resolve to the **latest**
 behavior) — a new version uploaded by the seller is immediately available to
 every existing buyer.
 
-## Phase 10 — Reviews + Reports
+## Phase 10 — Reviews + Reports ✅
 
 Buyers review products only after their order reaches `Delivered`/completed;
 one active report per user per product (enforced via the existing partial

@@ -1,14 +1,15 @@
 "use client";
 
-import { use } from "react";
+import { use, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { useRetryPayment } from "@/features/checkout/hooks";
 import { useCancelOrder, useMyOrder } from "@/features/orders/hooks";
+import { useCreateReview } from "@/features/reviews/hooks";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
 import { formatNaira } from "@/lib/currency";
-import type { SellerOrder } from "@/types/order";
+import type { OrderItem, SellerOrder } from "@/types/order";
 
 const sellerOrderStatusLabel: Record<SellerOrder["status"], string> = {
   PENDING: "Pending",
@@ -18,6 +19,89 @@ const sellerOrderStatusLabel: Record<SellerOrder["status"], string> = {
   CANCELLED: "Cancelled",
 };
 
+// Reviewable only once its SellerOrder has been delivered (Overview §23:
+// "allowed only after the order is delivered/completed") and only once —
+// `item.review` being present means it's already been left.
+function ReviewItemRow({ item }: { item: OrderItem }) {
+  const [open, setOpen] = useState(false);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState("");
+  const createReview = useCreateReview();
+
+  function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    createReview.mutate({ orderItemId: item.id, rating, comment: comment.trim() || undefined });
+  }
+
+  const lineTotal = formatNaira(Number(item.priceSnapshot) * item.quantity);
+
+  if (item.review) {
+    return (
+      <li className="flex items-center justify-between text-sm">
+        <span>
+          {item.productNameSnapshot} × {item.quantity}
+        </span>
+        <span className="flex items-center gap-2">
+          <span>{lineTotal}</span>
+          <span className="text-xs text-foreground/50">Reviewed</span>
+        </span>
+      </li>
+    );
+  }
+
+  return (
+    <li className="flex flex-col gap-2 text-sm">
+      <div className="flex items-center justify-between">
+        <span>
+          {item.productNameSnapshot} × {item.quantity}
+        </span>
+        <span className="flex items-center gap-2">
+          <span>{lineTotal}</span>
+          {!open && !createReview.isSuccess && (
+            <button type="button" onClick={() => setOpen(true)} className="text-xs font-medium underline">
+              Leave a review
+            </button>
+          )}
+        </span>
+      </div>
+
+      {createReview.isSuccess ? (
+        <p className="text-xs text-foreground/50">Thanks for your review.</p>
+      ) : (
+        open && (
+          <form onSubmit={handleSubmit} className="flex flex-col gap-2 rounded-md border border-black/10 p-3 dark:border-white/10">
+            {createReview.isError && <FormMessage type="error">{getErrorMessage(createReview.error)}</FormMessage>}
+            <label className="flex items-center gap-2 text-xs">
+              Rating
+              <select
+                value={rating}
+                onChange={(e) => setRating(Number(e.target.value))}
+                className="rounded border border-black/15 bg-transparent px-2 py-1 dark:border-white/20"
+              >
+                {[5, 4, 3, 2, 1].map((n) => (
+                  <option key={n} value={n}>
+                    {n} star{n === 1 ? "" : "s"}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <textarea
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="Optional comment"
+              rows={2}
+              className="rounded-md border border-black/15 bg-transparent px-2 py-1.5 text-sm dark:border-white/20"
+            />
+            <Button type="submit" loading={createReview.isPending} className="self-start">
+              Submit review
+            </Button>
+          </form>
+        )
+      )}
+    </li>
+  );
+}
+
 function SellerOrderCard({ sellerOrder }: { sellerOrder: SellerOrder }) {
   return (
     <div className="rounded-md border border-black/10 p-4 dark:border-white/10">
@@ -25,15 +109,19 @@ function SellerOrderCard({ sellerOrder }: { sellerOrder: SellerOrder }) {
         <h3 className="text-sm font-semibold">{sellerOrder.store.name}</h3>
         <span className="text-xs font-medium text-foreground/60">{sellerOrderStatusLabel[sellerOrder.status]}</span>
       </div>
-      <ul className="flex flex-col gap-1">
-        {sellerOrder.items.map((item) => (
-          <li key={item.id} className="flex justify-between text-sm">
-            <span>
-              {item.productNameSnapshot} × {item.quantity}
-            </span>
-            <span>{formatNaira(Number(item.priceSnapshot) * item.quantity)}</span>
-          </li>
-        ))}
+      <ul className="flex flex-col gap-2">
+        {sellerOrder.items.map((item) =>
+          sellerOrder.status === "DELIVERED" ? (
+            <ReviewItemRow key={item.id} item={item} />
+          ) : (
+            <li key={item.id} className="flex justify-between text-sm">
+              <span>
+                {item.productNameSnapshot} × {item.quantity}
+              </span>
+              <span>{formatNaira(Number(item.priceSnapshot) * item.quantity)}</span>
+            </li>
+          )
+        )}
       </ul>
       <div className="mt-2 flex justify-between border-t border-black/10 pt-2 text-sm dark:border-white/10">
         <span className="text-foreground/60">Shipping</span>

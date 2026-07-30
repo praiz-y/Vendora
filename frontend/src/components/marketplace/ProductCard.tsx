@@ -27,6 +27,11 @@ export function ProductCard({ product }: { product: PublicProduct }) {
       <div className="flex flex-1 flex-col gap-1 p-3">
         <p className="text-xs text-foreground/50">{product.store.name}</p>
         <p className="text-sm font-medium leading-snug">{product.name}</p>
+        {product.rating.averageRating !== null && (
+          <p className="text-xs text-foreground/60">
+            ★ {product.rating.averageRating.toFixed(1)} ({product.rating.reviewCount})
+          </p>
+        )}
         <p className="mt-auto text-sm font-semibold">{formatNaira(product.price)}</p>
       </div>
     </Link>

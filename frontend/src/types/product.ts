@@ -79,6 +79,7 @@ export interface PublicProduct {
   images: { id: string; url: string; isPrimary: boolean }[];
   category: { id: string; name: string; slug: string };
   store: { id: string; name: string; slug: string };
+  rating: { averageRating: number | null; reviewCount: number };
 }
 
 // The public/marketplace store shape — no phone/email, see
@@ -93,4 +94,5 @@ export interface PublicStore {
   businessCategory: string;
   location: string;
   createdAt: string;
+  rating: { averageRating: number | null; reviewedProductCount: number };
 }
