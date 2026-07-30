@@ -5,6 +5,17 @@ import usersRoutes from "../../modules/users/users.routes";
 import sellerApplicationsRoutes from "../../modules/sellerApplications/sellerApplications.routes";
 import adminSellerApplicationsRoutes from "../../modules/sellerApplications/admin/sellerApplications.admin.routes";
 import storesRoutes from "../../modules/stores/stores.routes";
+import categoriesRoutes from "../../modules/categories/categories.routes";
+import adminCategoriesRoutes from "../../modules/categories/admin/categories.admin.routes";
+import productsRoutes from "../../modules/products/products.routes";
+import adminProductsRoutes from "../../modules/products/admin/products.admin.routes";
+import marketplaceRoutes from "../../modules/marketplace/marketplace.routes";
+import cartRoutes from "../../modules/cart/cart.routes";
+import wishlistRoutes from "../../modules/wishlist/wishlist.routes";
+import checkoutRoutes from "../../modules/checkout/checkout.routes";
+import ordersRoutes from "../../modules/orders/orders.routes";
+import sellerOrdersRoutes from "../../modules/orders/seller/sellerOrders.routes";
+import entitlementsRoutes from "../../modules/entitlements/entitlements.routes";
 
 const router = Router();
 
@@ -14,5 +25,16 @@ router.use("/users", usersRoutes);
 router.use("/seller-applications", sellerApplicationsRoutes);
 router.use("/admin/seller-applications", adminSellerApplicationsRoutes);
 router.use("/stores", storesRoutes);
+router.use("/categories", categoriesRoutes);
+router.use("/admin/categories", adminCategoriesRoutes);
+router.use("/products", productsRoutes);
+router.use("/admin/products", adminProductsRoutes);
+router.use("/marketplace", marketplaceRoutes);
+router.use("/cart", cartRoutes);
+router.use("/wishlist", wishlistRoutes);
+router.use("/checkout", checkoutRoutes);
+router.use("/orders", ordersRoutes);
+router.use("/seller-orders", sellerOrdersRoutes);
+router.use("/entitlements", entitlementsRoutes);
 
 export default router;

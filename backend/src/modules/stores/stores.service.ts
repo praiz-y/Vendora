@@ -1,16 +1,8 @@
 import type { Store } from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
+import { slugify } from "../../utils/slug";
 import type { UpdateStoreInput } from "./stores.validation";
-
-function slugify(value: string): string {
-  const slug = value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-+|-+$)/g, "");
-  return slug || "store";
-}
 
 // Slugs are generated once, on approval, and never change afterward — even
 // if the seller later renames their store (stores.service.updateMyStore
@@ -38,4 +30,12 @@ export async function getMyStore(userId: string): Promise<Store> {
 export async function updateMyStore(userId: string, input: UpdateStoreInput): Promise<Store> {
   await getMyStore(userId);
   return prisma.store.update({ where: { sellerId: userId }, data: input });
+}
+
+// Products belong to a Store, not directly to a User — every seller-facing
+// product operation needs this to scope its queries. requireActiveSeller has
+// already confirmed the store is ACTIVE by the time a route gets here.
+export async function getMyStoreId(userId: string): Promise<string> {
+  const store = await getMyStore(userId);
+  return store.id;
 }

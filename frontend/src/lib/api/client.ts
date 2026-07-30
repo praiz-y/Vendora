@@ -66,10 +66,18 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   const json = (await response.json().catch(() => null)) as ApiResponse<T> | null;
 
   if (!response.ok || !json || json.success === false) {
-    // Only worth a silent refresh-and-retry if this request actually carried
-    // an access token that could plausibly have just expired. A 401 with no
-    // token attached (e.g. a failed login/register) is a real, final error.
-    if (response.status === 401 && token && !skipAuthRefresh) {
+    // Always worth a silent refresh-and-retry on a 401, even with no token
+    // attached — not just "token expired mid-session". On a hard page load
+    // (bookmark, refresh), a query can fire before AuthProvider's own
+    // bootstrap refresh resolves; that request has no token yet but would
+    // succeed once the refresh cookie is exchanged a moment later. Skipping
+    // the retry here left pages like /orders permanently stuck on
+    // "Authentication required" despite a perfectly valid session — found
+    // via real-browser testing (Phase 8), not by exercising each origin's
+    // requests in isolation. A truly logged-out user still ends up with the
+    // same final error, just after one extra (cheap, deduped) refresh
+    // attempt that resolves to null.
+    if (response.status === 401 && !skipAuthRefresh) {
       const newToken = await refreshAccessToken();
       if (newToken) {
         return request<T>(path, { ...options, skipAuthRefresh: true });

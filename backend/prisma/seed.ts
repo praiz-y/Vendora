@@ -316,9 +316,16 @@ async function main() {
 
   // --- Cart & wishlist ---------------------------------------------------------
 
+  // Every registered user gets a Cart (auth.service.ts register() does this
+  // for real signups) — admin/sellerOneUser/sellerTwoUser need one too since
+  // they're still buyers (Overview §5.2: "a seller is still also a buyer"),
+  // not just `buyer`.
   const cart = await prisma.cart.create({ data: { userId: buyer.id } });
   await prisma.cartItem.create({ data: { cartId: cart.id, productId: toteBag.id, quantity: 1 } });
   await prisma.wishlistItem.create({ data: { userId: buyer.id, productId: toteBag.id } });
+  await prisma.cart.create({ data: { userId: admin.id } });
+  await prisma.cart.create({ data: { userId: sellerOneUser.id } });
+  await prisma.cart.create({ data: { userId: sellerTwoUser.id } });
 
   // --- Order 1: single-vendor, completed ---------------------------------------
 
@@ -412,7 +419,9 @@ async function main() {
     data: {
       buyerId: buyer.id,
       status: "PARTIALLY_SHIPPED",
-      totalAmount: 42000 + 3500,
+      // 42000 (Smart Watch X, matches its priceSnapshot below) + 2000
+      // shipping + 3500 (order2SellerOrderTwo's digital item, no shipping).
+      totalAmount: 42000 + 2000 + 3500,
       shippingAddressId: buyerAddress.id,
     },
   });
@@ -422,9 +431,16 @@ async function main() {
       orderId: order2.id,
       storeId: sellerOneStore.id,
       status: "SHIPPED",
-      subtotal: 40000,
+      // Must match pendingSmartWatch.price (42000) — subtotal previously
+      // said 40000, inconsistent with the OrderItem's own priceSnapshot
+      // below. Found via Phase 8 browser verification (seller order detail
+      // page showing "Smart Watch X × 1 = ₦42,000" but a total of ₦42,000
+      // instead of ₦44,000 with shipping); pre-existing since Phase 1, not
+      // a Phase 7-9 checkout math bug (real checkouts always compute this
+      // correctly — see checkout.test.ts).
+      subtotal: 42000,
       shippingFee: 2000,
-      total: 42000,
+      total: 44000,
     },
   });
 

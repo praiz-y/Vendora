@@ -50,14 +50,14 @@ Overview.md section 42 exactly.
 | 0 | Project Foundation | ✅ Complete |
 | 1 | Database + Core Backend | ✅ Complete |
 | 2 | Authentication + User Accounts | ✅ Complete |
-| 3 | Admin Foundation + Seller Onboarding, Stores & Dashboard Shells | 🔜 Next |
-| 4 | Categories + Products + Moderation | Planned |
-| 5 | Marketplace + Discovery | Planned |
-| 6 | Cart + Wishlist | Planned |
-| 7 | Multi-Vendor Checkout + Payments | Planned |
-| 8 | Orders + Fulfillment | Planned |
-| 9 | Digital Products | Planned |
-| 10 | Reviews + Reports | Planned |
+| 3 | Admin Foundation + Seller Onboarding, Stores & Dashboard Shells | ✅ Complete |
+| 4 | Categories + Products + Moderation | ✅ Complete |
+| 5 | Marketplace + Discovery | ✅ Complete |
+| 6 | Cart + Wishlist | ✅ Complete |
+| 7 | Multi-Vendor Checkout + Payments | ✅ Complete |
+| 8 | Orders + Fulfillment | ✅ Complete |
+| 9 | Digital Products | ✅ Complete |
+| 10 | Reviews + Reports | 🔜 Next |
 | 11 | Seller Dashboard + Analytics | Planned |
 | 12 | Notifications | Planned |
 | 13 | Refunds | Planned |
@@ -96,7 +96,7 @@ tokens in an `HttpOnly` cookie, reuse-detection-triggers-full-revocation,
 ownership-checked profile + address CRUD, rate limiting on auth endpoints, 39
 automated backend tests, frontend auth pages + account section.
 
-## Phase 3 — Admin Foundation + Seller Onboarding, Stores & Dashboard Shells
+## Phase 3 — Admin Foundation + Seller Onboarding, Stores & Dashboard Shells ✅
 
 **Backend**
 - `SellerApplication` submit / edit / resubmit; admin approve / reject with a
@@ -125,7 +125,7 @@ admin-touching phase)*
 **Frontend (buyer-facing)**
 - "Become a Seller" entry point + application form/status view.
 
-## Phase 4 — Categories + Products + Moderation
+## Phase 4 — Categories + Products + Moderation ✅
 
 **Backend**
 - `Category` CRUD (admin-only creation — sellers select from existing
@@ -143,21 +143,21 @@ admin-touching phase)*
 - Create / edit / list products, view approval status, submit for review,
   archive.
 
-## Phase 5 — Marketplace + Discovery
+## Phase 5 — Marketplace + Discovery ✅
 
 Public, buyer-facing, no dashboard work: homepage, product browsing, search,
 filtering, product detail pages, store pages. Only `Approved` + public
 products/stores are visible. Out-of-stock display for zero-inventory
 products.
 
-## Phase 6 — Cart + Wishlist
+## Phase 6 — Cart + Wishlist ✅
 
 Persistent multi-seller cart and wishlist. Cart re-validates the entire
 contents before checkout (product exists/approved/available/not
 archived/not suspended, price current, stock sufficient, store active).
 Wishlist respects product availability; move-to-cart.
 
-## Phase 7 — Multi-Vendor Checkout + Payments
+## Phase 7 — Multi-Vendor Checkout + Payments ✅
 
 One checkout, one payment, one parent `Order`, split into per-seller
 `SellerOrder`s at creation time. Shipping computed per seller (free / fixed
@@ -171,7 +171,7 @@ swapping or adding a provider later doesn't require a schema change.
 Payment states: pending, successful, failed, verified via
 callback/webhook.
 
-## Phase 8 — Orders + Fulfillment
+## Phase 8 — Orders + Fulfillment ✅
 
 Buyer order history (parent-order view showing seller-level breakdown).
 Seller Orders tab (fills in Phase 3's placeholder): view/manage
@@ -179,7 +179,7 @@ seller-specific orders, update fulfillment status independently per seller.
 Parent `Order.status` derived from its `SellerOrder`s (supports partial
 fulfillment: one seller shipped, another still processing).
 
-## Phase 9 — Digital Products
+## Phase 9 — Digital Products ✅
 
 On successful payment: create a `DigitalEntitlement`, grant buyer access,
 enable secure download. Entitlements resolve to the **latest**

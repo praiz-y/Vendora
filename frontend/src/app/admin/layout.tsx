@@ -8,7 +8,11 @@ import { useRequireAdmin } from "@/features/auth/useRequireAdmin";
 // nav that every later admin-touching phase (product moderation, reports,
 // refunds, ...) adds a screen onto, instead of building its own one-off
 // admin tooling.
-const navItems = [{ href: "/admin/seller-applications", label: "Seller Applications" }];
+const navItems = [
+  { href: "/admin/seller-applications", label: "Seller Applications" },
+  { href: "/admin/products", label: "Products" },
+  { href: "/admin/categories", label: "Categories" },
+];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const gate = useRequireAdmin();
