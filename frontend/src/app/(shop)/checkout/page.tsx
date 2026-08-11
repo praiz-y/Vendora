@@ -150,10 +150,12 @@ export default function CheckoutPage() {
         </div>
       )}
 
-      <label className="flex items-center gap-2 text-sm text-foreground/60">
-        <input type="checkbox" checked={simulateFailure} onChange={(e) => setSimulateFailure(e.target.checked)} />
-        Simulate a payment failure (test — no real payment provider is wired up yet)
-      </label>
+      {process.env.NODE_ENV !== "production" && (
+        <label className="flex items-center gap-2 text-sm text-foreground/60">
+          <input type="checkbox" checked={simulateFailure} onChange={(e) => setSimulateFailure(e.target.checked)} />
+          Simulate a payment failure (test — no real payment provider is wired up yet)
+        </label>
+      )}
 
       {checkout.isError && <FormMessage type="error">{getErrorMessage(checkout.error)}</FormMessage>}
 

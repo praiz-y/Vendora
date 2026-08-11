@@ -79,10 +79,13 @@ export async function removeFromWishlist(userId: string, itemId: string) {
 // Adds the item to the cart (full validation via cart.service.addToCart —
 // availability/stock rules are never duplicated) and only then removes it
 // from the wishlist, so a rejected add (e.g. out of stock) leaves the
-// wishlist untouched instead of losing the item.
+// wishlist untouched instead of losing the item. Wishlist stays
+// account-gated (Overhaul Phase 3 only opened up Cart, not Wishlist), so
+// this userId always has its own Cart row already.
 export async function moveToCart(userId: string, itemId: string) {
   const item = await getOwnedWishlistItemOrThrow(userId, itemId);
-  const cart = await addToCart(userId, { productId: item.productId, quantity: 1 });
+  const userCart = await prisma.cart.findUniqueOrThrow({ where: { userId } });
+  const cart = await addToCart(userCart.id, { productId: item.productId, quantity: 1 });
   await prisma.wishlistItem.delete({ where: { id: itemId } });
   return cart;
 }

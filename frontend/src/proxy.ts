@@ -26,6 +26,10 @@ export function proxy(request: NextRequest) {
   return NextResponse.next();
 }
 
+// /cart deliberately excluded (Overhaul Phase 3) — guests can view and
+// build a cart anonymously now; login is only required at checkout, which
+// stays gated below. /wishlist stays gated too (Part 3 of the plan: unlike
+// cart, wishlist stays account-only).
 export const config = {
-  matcher: ["/account/:path*", "/seller/:path*", "/admin/:path*", "/cart", "/wishlist", "/checkout", "/orders/:path*"],
+  matcher: ["/account/:path*", "/seller/:path*", "/admin/:path*", "/wishlist", "/checkout", "/orders/:path*"],
 };

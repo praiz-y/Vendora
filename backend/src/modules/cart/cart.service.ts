@@ -2,6 +2,8 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 
+type PrismaClientOrTx = typeof prisma | Prisma.TransactionClient;
+
 const cartItemInclude = {
   product: {
     select: {
@@ -39,27 +41,26 @@ function serializeCartItem(item: CartItemWithProduct) {
   return { ...item, ...evaluateAvailability(item) };
 }
 
-export async function getCart(userId: string) {
-  const cart = await prisma.cart.findUniqueOrThrow({ where: { userId } });
+// Every function below takes a cartId, not a userId — the caller (an
+// authenticated user's own cart, or an anonymous guest's cookie-identified
+// cart) is already resolved by cart.middleware.ts's resolveCart() before
+// any of these run, so cart ownership never needs re-deriving here.
+export async function getCart(cartId: string) {
   const items = await prisma.cartItem.findMany({
-    where: { cartId: cart.id },
+    where: { cartId },
     orderBy: { createdAt: "asc" },
     include: cartItemInclude,
   });
-  return { id: cart.id, items: items.map(serializeCartItem) };
+  return { id: cartId, items: items.map(serializeCartItem) };
 }
 
-async function getOwnedCartItemOrThrow(userId: string, itemId: string): Promise<CartItemWithProduct> {
+async function getOwnedCartItemOrThrow(cartId: string, itemId: string): Promise<CartItemWithProduct> {
   const item = await prisma.cartItem.findUnique({ where: { id: itemId }, include: cartItemInclude });
-  if (!item) throw ApiError.notFound("Cart item not found.", "CART_ITEM_NOT_FOUND");
-  const cart = await prisma.cart.findUniqueOrThrow({ where: { userId } });
-  if (item.cartId !== cart.id) throw ApiError.notFound("Cart item not found.", "CART_ITEM_NOT_FOUND");
+  if (!item || item.cartId !== cartId) throw ApiError.notFound("Cart item not found.", "CART_ITEM_NOT_FOUND");
   return item;
 }
 
-export async function addToCart(userId: string, input: { productId: string; quantity: number }) {
-  const cart = await prisma.cart.findUniqueOrThrow({ where: { userId } });
-
+export async function addToCart(cartId: string, input: { productId: string; quantity: number }) {
   const product = await prisma.product.findUnique({
     where: { id: input.productId },
     select: { id: true, type: true, status: true, stockQuantity: true, store: { select: { status: true } } },
@@ -69,7 +70,7 @@ export async function addToCart(userId: string, input: { productId: string; quan
   }
 
   const existing = await prisma.cartItem.findUnique({
-    where: { cartId_productId: { cartId: cart.id, productId: input.productId } },
+    where: { cartId_productId: { cartId, productId: input.productId } },
   });
 
   if (product.type === "DIGITAL") {
@@ -81,30 +82,35 @@ export async function addToCart(userId: string, input: { productId: string; quan
     // Phase 9: don't let a buyer pay again for a digital product they
     // already own — DigitalEntitlement is unique on (userId, productId), so
     // this is also the natural point to prevent the checkout-time conflict
-    // rather than discovering it after payment succeeds.
-    const alreadyOwned = await prisma.digitalEntitlement.findUnique({
-      where: { userId_productId: { userId, productId: input.productId } },
-    });
-    if (alreadyOwned) throw ApiError.conflict("You already own this digital product.", "ALREADY_OWNED");
+    // rather than discovering it after payment succeeds. Guest carts can't
+    // own an entitlement (no userId), so this only ever fires for an
+    // authenticated user's own cart — harmless no-op check otherwise.
+    const cart = await prisma.cart.findUniqueOrThrow({ where: { id: cartId }, select: { userId: true } });
+    if (cart.userId) {
+      const alreadyOwned = await prisma.digitalEntitlement.findUnique({
+        where: { userId_productId: { userId: cart.userId, productId: input.productId } },
+      });
+      if (alreadyOwned) throw ApiError.conflict("You already own this digital product.", "ALREADY_OWNED");
+    }
 
-    await prisma.cartItem.create({ data: { cartId: cart.id, productId: input.productId, quantity: 1 } });
+    await prisma.cartItem.create({ data: { cartId, productId: input.productId, quantity: 1 } });
   } else {
     const newQuantity = (existing?.quantity ?? 0) + input.quantity;
     if ((product.stockQuantity ?? 0) < newQuantity) {
       throw ApiError.badRequest("Not enough stock available.", "INSUFFICIENT_STOCK");
     }
     await prisma.cartItem.upsert({
-      where: { cartId_productId: { cartId: cart.id, productId: input.productId } },
-      create: { cartId: cart.id, productId: input.productId, quantity: newQuantity },
+      where: { cartId_productId: { cartId, productId: input.productId } },
+      create: { cartId, productId: input.productId, quantity: newQuantity },
       update: { quantity: newQuantity },
     });
   }
 
-  return getCart(userId);
+  return getCart(cartId);
 }
 
-export async function updateCartItemQuantity(userId: string, itemId: string, quantity: number) {
-  const item = await getOwnedCartItemOrThrow(userId, itemId);
+export async function updateCartItemQuantity(cartId: string, itemId: string, quantity: number) {
+  const item = await getOwnedCartItemOrThrow(cartId, itemId);
 
   if (item.product.type === "DIGITAL" && quantity !== 1) {
     throw ApiError.badRequest("Digital products can only have a quantity of 1.", "INVALID_QUANTITY");
@@ -114,11 +120,55 @@ export async function updateCartItemQuantity(userId: string, itemId: string, qua
   }
 
   await prisma.cartItem.update({ where: { id: itemId }, data: { quantity } });
-  return getCart(userId);
+  return getCart(cartId);
 }
 
-export async function removeCartItem(userId: string, itemId: string) {
-  await getOwnedCartItemOrThrow(userId, itemId);
+export async function removeCartItem(cartId: string, itemId: string) {
+  await getOwnedCartItemOrThrow(cartId, itemId);
   await prisma.cartItem.delete({ where: { id: itemId } });
-  return getCart(userId);
+  return getCart(cartId);
+}
+
+// Folds an anonymous cart into the account the guest just logged into or
+// registered — combining quantities on duplicate physical products, and
+// dropping (rather than duplicating) a digital item the account either
+// already has in its own cart or already owns as an entitlement. A no-op if
+// no guest cart token was presented, or if it doesn't match any cart (e.g.
+// already merged, or simply never existed).
+export async function mergeGuestCartIntoUserCart(
+  client: PrismaClientOrTx,
+  input: { guestToken: string | undefined; userId: string }
+): Promise<void> {
+  if (!input.guestToken) return;
+
+  const guestCart = await client.cart.findUnique({
+    where: { guestToken: input.guestToken },
+    include: { items: { include: { product: { select: { type: true } } } } },
+  });
+  if (!guestCart) return;
+
+  const targetCart = await client.cart.findUniqueOrThrow({ where: { userId: input.userId } });
+
+  for (const item of guestCart.items) {
+    if (item.product.type === "DIGITAL") {
+      const alreadyOwned = await client.digitalEntitlement.findUnique({
+        where: { userId_productId: { userId: input.userId, productId: item.productId } },
+      });
+      if (alreadyOwned) continue;
+
+      await client.cartItem.upsert({
+        where: { cartId_productId: { cartId: targetCart.id, productId: item.productId } },
+        create: { cartId: targetCart.id, productId: item.productId, quantity: 1 },
+        update: {},
+      });
+    } else {
+      await client.cartItem.upsert({
+        where: { cartId_productId: { cartId: targetCart.id, productId: item.productId } },
+        create: { cartId: targetCart.id, productId: item.productId, quantity: item.quantity },
+        update: { quantity: { increment: item.quantity } },
+      });
+    }
+  }
+
+  await client.cart.delete({ where: { id: guestCart.id } });
 }

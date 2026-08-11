@@ -1,12 +1,13 @@
 import { z } from "zod";
+import { httpUrlSchema } from "../../utils/validation";
 
 // Shared by the seller application (Phase 3 submission) and store profile
 // editing — both describe the same underlying store-identity fields.
 export const storeProfileSchema = z.object({
   name: z.string().trim().min(2).max(150),
   description: z.string().trim().min(10).max(2000),
-  logoUrl: z.string().trim().url().optional(),
-  bannerUrl: z.string().trim().url().optional(),
+  logoUrl: httpUrlSchema.optional(),
+  bannerUrl: httpUrlSchema.optional(),
   businessCategory: z.string().trim().min(2).max(100),
   phone: z.string().trim().min(1).max(30),
   email: z.string().trim().email(),

@@ -1,11 +1,19 @@
 import { Prisma, type Order } from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
+import { notify } from "../../utils/notifications";
 import { charge, PROVIDER_NAME } from "../../services/paymentGateway.service";
 import { getOrderDetail } from "../orders/orders.service";
 import type { CheckoutInput, RetryPaymentInput } from "./checkout.validation";
 
 const RESERVATION_TTL_MINUTES = 15;
+
+// Prisma's interactive-transaction default (5s) has been observed to be too
+// tight under this sandbox's occasional dev-environment slowdowns (see
+// project-context.md's "dev servers degrade" note) — these transactions do
+// nothing inherently slow, just a handful of sequential writes, so a longer
+// ceiling only matters when the environment itself is under strain.
+const TRANSACTION_OPTIONS = { timeout: 15_000 };
 
 const checkoutCartItemInclude = {
   product: { include: { store: { select: { id: true, name: true, status: true } } } },
@@ -171,7 +179,7 @@ async function createOrderGraph(
     });
 
     return order;
-  });
+  }, TRANSACTION_OPTIONS);
 }
 
 async function finalizeSuccessfulPayment(orderId: string, paymentId: string, providerReference: string): Promise<void> {
@@ -216,7 +224,31 @@ async function finalizeSuccessfulPayment(orderId: string, paymentId: string, pro
     if (cart) {
       await tx.cartItem.deleteMany({ where: { cartId: cart.id, productId: { in: purchasedProductIds } } });
     }
-  });
+
+    await notify(tx, {
+      userId: order.buyerId,
+      type: "PAYMENT_SUCCESS",
+      title: "Payment successful",
+      message: "Your payment was successful and your order has been placed.",
+      relatedEntityType: "Order",
+      relatedEntityId: orderId,
+    });
+
+    const sellerOrders = await tx.sellerOrder.findMany({
+      where: { orderId },
+      select: { id: true, store: { select: { sellerId: true, name: true } } },
+    });
+    for (const sellerOrder of sellerOrders) {
+      await notify(tx, {
+        userId: sellerOrder.store.sellerId,
+        type: "ORDER_PLACED",
+        title: "You have a new order",
+        message: `A buyer just placed an order with "${sellerOrder.store.name}".`,
+        relatedEntityType: "SellerOrder",
+        relatedEntityId: sellerOrder.id,
+      });
+    }
+  }, TRANSACTION_OPTIONS);
 }
 
 async function releaseReservationsForOrder(orderId: string): Promise<void> {
@@ -308,7 +340,7 @@ export async function retryPayment(userId: string, orderId: string, input: Retry
         },
       });
     }
-  });
+  }, TRANSACTION_OPTIONS);
 
   return attemptPaymentAndFinalize(orderId, input.simulateFailure);
 }

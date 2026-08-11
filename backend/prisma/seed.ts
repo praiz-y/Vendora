@@ -14,6 +14,7 @@ async function resetData() {
   // README/phase reports — so a full wipe-and-reseed is the simplest way to
   // keep this script idempotent.
   await prisma.auditLog.deleteMany();
+  await prisma.announcement.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.productReport.deleteMany();
   await prisma.review.deleteMany();
@@ -403,9 +404,13 @@ async function main() {
     },
   });
 
+  // Scoped to sellerOrderId, matching Phase 13's V1 decision that a refund
+  // always covers a whole SellerOrder, never a single OrderItem — this row
+  // predates that phase and originally used orderItemId, which the admin
+  // refund screens can't render (found via Phase 13's browser verification).
   await prisma.refund.create({
     data: {
-      orderItemId: order1Item.id,
+      sellerOrderId: order1SellerOrder.id,
       amount: 26500,
       reason: "Buyer requested refund — wrong color received.",
       status: "REQUESTED",
@@ -570,6 +575,20 @@ async function main() {
         metadata: { reason: rejectedCharger.rejectionReason },
       },
     ],
+  });
+
+  // --- Announcement bar (Overhaul Phase 2) -----------------------------------
+
+  // Placeholder content — no admin screen exists yet to edit this (that's
+  // Overhaul Phase 11), so the seed is what gives the marquee bar something
+  // to display during development until then.
+  await prisma.announcement.create({
+    data: {
+      id: 1,
+      message: "Welcome to Vendora — new sellers join every week. Free shipping on select stores.",
+      enabled: true,
+      updatedById: admin.id,
+    },
   });
 
   console.log("Seed complete.");

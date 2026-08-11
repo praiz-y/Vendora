@@ -1,6 +1,7 @@
 import { Prisma, type Store, type User } from "@prisma/client";
 import { env } from "../../config/env";
 import { prisma } from "../../config/prisma";
+import { mergeGuestCartIntoUserCart } from "../cart/cart.service";
 import { hashPassword, verifyPassword } from "../../services/password.service";
 import { sendPasswordResetEmail } from "../../services/email.service";
 import {
@@ -86,10 +87,15 @@ async function createSession(user: User, meta: { userAgent?: string; ipAddress?:
   return { user: toSafeUser(user, store), accessToken, refreshToken, refreshTokenExpiresAt };
 }
 
-export async function register(
-  input: RegisterInput,
-  meta: { userAgent?: string; ipAddress?: string }
-): Promise<SessionResult> {
+export interface AuthRequestMeta {
+  userAgent?: string;
+  ipAddress?: string;
+  // Present only when the browser presented a guest-cart cookie — see
+  // cart.service.ts's mergeGuestCartIntoUserCart for what happens to it.
+  guestCartToken?: string;
+}
+
+export async function register(input: RegisterInput, meta: AuthRequestMeta): Promise<SessionResult> {
   const email = normalizeEmail(input.email);
   const passwordHash = await hashPassword(input.password);
 
@@ -108,6 +114,10 @@ export async function register(
       // Every user gets a cart up front so the rest of the app never has to
       // handle "user with no cart yet" as a special case.
       await tx.cart.create({ data: { userId: created.id } });
+      // Folds in whatever the person added to their cart before registering
+      // — same transaction, so account creation and the cart merge commit
+      // (or roll back) together.
+      await mergeGuestCartIntoUserCart(tx, { guestToken: meta.guestCartToken, userId: created.id });
       return created;
     });
   } catch (error) {
@@ -127,7 +137,7 @@ export async function register(
   return createSession(user, meta);
 }
 
-export async function login(input: LoginInput, meta: { userAgent?: string; ipAddress?: string }): Promise<SessionResult> {
+export async function login(input: LoginInput, meta: AuthRequestMeta): Promise<SessionResult> {
   const identifier = input.identifier.trim();
   const isEmail = identifier.includes("@");
 
@@ -148,6 +158,8 @@ export async function login(input: LoginInput, meta: { userAgent?: string; ipAdd
     // credentials, so this isn't an account-enumeration risk.
     throw ApiError.forbidden("This account has been suspended.", "ACCOUNT_SUSPENDED");
   }
+
+  await prisma.$transaction((tx) => mergeGuestCartIntoUserCart(tx, { guestToken: meta.guestCartToken, userId: user.id }));
 
   return createSession(user, meta);
 }

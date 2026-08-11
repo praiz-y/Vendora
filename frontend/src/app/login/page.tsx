@@ -1,24 +1,27 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { TextField } from "@/components/ui/TextField";
 import { PasswordField } from "@/components/ui/PasswordField";
 import { useLogin } from "@/features/auth/hooks";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { resolveRedirectTarget } from "@/lib/redirectTarget";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const login = useLogin();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    login.mutate({ identifier, password }, { onSuccess: () => router.push("/account/profile") });
+    const redirectTo = resolveRedirectTarget(searchParams.get("from"));
+    login.mutate({ identifier, password }, { onSuccess: () => router.push(redirectTo) });
   }
 
   return (
@@ -65,5 +68,13 @@ export default function LoginPage() {
         </Link>
       </p>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }

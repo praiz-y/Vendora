@@ -67,6 +67,7 @@ model User {
   notifications       Notification[]
   digitalEntitlements DigitalEntitlement[]
   auditLogs           AuditLog[]           @relation("AuditLogActor")
+  announcementUpdates Announcement[]       @relation("AnnouncementUpdatedBy")
 
   @@index([role])
   @@index([status])
@@ -352,13 +353,24 @@ model ProductView {
 // One cart per user, holding items from any number of stores at once. The
 // backend revalidates price/stock/status against the live Product at
 // checkout — nothing here is snapshotted.
+//
+// Overhaul Phase 3: a Cart now belongs to exactly one of a registered user
+// (`userId`) or an anonymous browser (`guestToken`, an unguessable
+// server-generated value handed back in an HttpOnly cookie) — never both,
+// never neither. Enforced in cart.middleware.ts's resolveCart(), not a DB
+// constraint (Prisma has no partial/conditional check constraint syntax —
+// same limitation already noted on ProductReport's partial unique index).
+// A guest cart is merged into the user's own Cart and deleted at
+// login/register time (auth.service.ts), so an authenticated user's Cart
+// always has `userId` set and `guestToken` null.
 model Cart {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  userId     String?  @unique
+  guestToken String?  @unique
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user  User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
   items CartItem[]
 }
 
@@ -756,4 +768,22 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([actorId])
   @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Site Content
+// ---------------------------------------------------------------------------
+
+// Deliberately a fixed-id singleton (always read/write id=1) rather than an
+// `enabled` flag among potentially-many rows — Part 2 of the overhaul plan:
+// there's only ever one active announcement message, no "which one" query
+// needed.
+model Announcement {
+  id          Int      @id
+  message     String
+  enabled     Boolean  @default(false)
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+
+  updatedBy User? @relation("AnnouncementUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 }

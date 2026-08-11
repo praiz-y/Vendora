@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #ffffeb;
+  --foreground: #1d1d1d;
 }
 
 @theme inline {
@@ -10,17 +10,57 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-primary: #eb4600;
+  --color-primary-hover: #c93a00;
+  --color-primary-light: #fff0e9;
+  --color-secondary: #a2c2be;
+  --color-secondary-hover: #8cb0ab;
+  --color-secondary-foreground: #1d1d1d;
+
+  --color-surface: #ffffff;
+  --color-surface-alt: #fffbef;
+
+  --color-heading: #1d1d1d;
+  --color-body: #333333;
+  --color-muted: #6b6b6b;
+  --color-light: #9a9a9a;
+
+  --color-border: #e2dfcf;
+  --color-border-strong: #c9c4b0;
+
+  --color-success: #2e8b57;
+  --color-warning: #f0a500;
+  --color-error: #d64545;
+  --color-info: #3b82f6;
+  --color-rating-gold: #f5b301;
+
+  --color-badge-success-bg: #e1f4e9;
+  --color-badge-success-text: #1e6b41;
+  --color-badge-warning-bg: #fff3dc;
+  --color-badge-warning-text: #92620a;
+  --color-badge-error-bg: #fbe4e4;
+  --color-badge-error-text: #a32e2e;
+  --color-badge-info-bg: #e5eefe;
+  --color-badge-info-text: #1d4ed8;
+  --color-badge-neutral-bg: #f0f0f0;
+  --color-badge-neutral-text: #52525b;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+}
+
+/* Announcement bar (Part 2 of the overhaul plan) — the track holds the
+   message twice (the second copy aria-hidden), translated by exactly one
+   copy's width so the loop reads as continuous rather than restarting. */
+@keyframes marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
 }

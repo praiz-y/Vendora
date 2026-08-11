@@ -1,4 +1,4 @@
-import type { UserRole } from "@prisma/client";
+import type { Cart, UserRole } from "@prisma/client";
 
 declare global {
   namespace Express {
@@ -7,6 +7,9 @@ declare global {
         id: string;
         role: UserRole;
       };
+      // Resolved by cart.middleware.ts's resolveCart() — either the
+      // authenticated user's own Cart or a cookie-identified guest Cart.
+      cart?: Cart;
     }
   }
 }

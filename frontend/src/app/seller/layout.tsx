@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useRequireActiveSeller } from "@/features/auth/useRequireActiveSeller";
 import { useMyStore } from "@/features/stores/hooks";
 
-// Nav mirrors the seller-dashboard tabs from docs/roadmap.md Phase 3/8/10/11:
-// only Profile is implemented this phase — the rest render placeholder pages
-// until the phase that owns their data fills them in.
+// Nav mirrors the seller-dashboard tabs from docs/roadmap.md Phase 3 — every
+// tab is now real, filled in incrementally through Phases 4/8/10/11.
 const navItems = [
   { href: "/seller", label: "Dashboard" },
   { href: "/seller/products", label: "Products" },
@@ -24,28 +24,36 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
 
   if (gate !== "authorized") {
     return (
-      <main className="flex min-h-screen items-center justify-center">
-        <p className="text-sm text-foreground/60">Loading…</p>
-      </main>
+      <>
+        <meta name="robots" content="noindex, nofollow" />
+        <main className="flex min-h-screen items-center justify-center">
+          <p className="text-sm text-muted">Loading…</p>
+        </main>
+      </>
     );
   }
 
   return (
+    <>
+    <meta name="robots" content="noindex, nofollow" />
     <div className="mx-auto flex min-h-screen max-w-4xl flex-col gap-6 px-4 py-10">
-      <div>
-        <h1 className="text-xl font-semibold">Seller Dashboard</h1>
-        <p className="text-sm text-foreground/60">{store?.name}</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-heading">Seller Dashboard</h1>
+          <p className="text-sm text-muted">{store?.name}</p>
+        </div>
+        <NotificationBell />
       </div>
 
-      <nav className="flex flex-wrap gap-4 border-b border-black/10 dark:border-white/10">
+      <nav className="flex flex-wrap gap-4 border-b border-border">
         {navItems.map((item) => (
           <Link
             key={item.href}
             href={item.href}
             className={`border-b-2 px-1 pb-2 text-sm font-medium ${
               pathname === item.href
-                ? "border-foreground text-foreground"
-                : "border-transparent text-foreground/50 hover:text-foreground"
+                ? "border-primary text-heading"
+                : "border-transparent text-muted hover:text-heading"
             }`}
           >
             {item.label}
@@ -55,5 +63,6 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
 
       {children}
     </div>
+    </>
   );
 }

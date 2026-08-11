@@ -19,6 +19,15 @@ import entitlementsRoutes from "../../modules/entitlements/entitlements.routes";
 import reviewsRoutes from "../../modules/reviews/reviews.routes";
 import productReportsRoutes from "../../modules/productReports/productReports.routes";
 import adminProductReportsRoutes from "../../modules/productReports/admin/productReports.admin.routes";
+import sellerDashboardRoutes from "../../modules/sellerDashboard/sellerDashboard.routes";
+import notificationsRoutes from "../../modules/notifications/notifications.routes";
+import refundsRoutes from "../../modules/refunds/refunds.routes";
+import adminRefundsRoutes from "../../modules/refunds/admin/refunds.admin.routes";
+import adminDashboardRoutes from "../../modules/adminDashboard/adminDashboard.routes";
+import auditLogsRoutes from "../../modules/auditLogs/auditLogs.routes";
+import adminUsersRoutes from "../../modules/users/admin/users.admin.routes";
+import announcementRoutes from "../../modules/announcement/announcement.routes";
+import adminAnnouncementRoutes from "../../modules/announcement/admin/announcement.admin.routes";
 
 const router = Router();
 
@@ -42,5 +51,14 @@ router.use("/entitlements", entitlementsRoutes);
 router.use("/reviews", reviewsRoutes);
 router.use("/product-reports", productReportsRoutes);
 router.use("/admin/product-reports", adminProductReportsRoutes);
+router.use("/seller-dashboard", sellerDashboardRoutes);
+router.use("/notifications", notificationsRoutes);
+router.use("/refunds", refundsRoutes);
+router.use("/admin/refunds", adminRefundsRoutes);
+router.use("/admin-dashboard", adminDashboardRoutes);
+router.use("/admin/audit-logs", auditLogsRoutes);
+router.use("/admin/users", adminUsersRoutes);
+router.use("/announcement", announcementRoutes);
+router.use("/admin/announcement", adminAnnouncementRoutes);
 
 export default router;

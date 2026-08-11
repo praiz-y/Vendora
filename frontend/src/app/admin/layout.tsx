@@ -9,10 +9,14 @@ import { useRequireAdmin } from "@/features/auth/useRequireAdmin";
 // refunds, ...) adds a screen onto, instead of building its own one-off
 // admin tooling.
 const navItems = [
+  { href: "/admin", label: "Overview" },
   { href: "/admin/seller-applications", label: "Seller Applications" },
   { href: "/admin/products", label: "Products" },
   { href: "/admin/categories", label: "Categories" },
   { href: "/admin/product-reports", label: "Product Reports" },
+  { href: "/admin/refunds", label: "Refunds" },
+  { href: "/admin/users", label: "Users" },
+  { href: "/admin/audit-logs", label: "Audit Log" },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -21,13 +25,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (gate !== "authorized") {
     return (
-      <main className="flex min-h-screen items-center justify-center">
-        <p className="text-sm text-foreground/60">Loading…</p>
-      </main>
+      <>
+        <meta name="robots" content="noindex, nofollow" />
+        <main className="flex min-h-screen items-center justify-center">
+          <p className="text-sm text-foreground/60">Loading…</p>
+        </main>
+      </>
     );
   }
 
   return (
+    <>
+    <meta name="robots" content="noindex, nofollow" />
     <div className="mx-auto flex min-h-screen max-w-4xl flex-col gap-6 px-4 py-10">
       <h1 className="text-xl font-semibold">Admin</h1>
 
@@ -37,7 +46,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             key={item.href}
             href={item.href}
             className={`border-b-2 px-1 pb-2 text-sm font-medium ${
-              pathname.startsWith(item.href)
+              (item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href))
                 ? "border-foreground text-foreground"
                 : "border-transparent text-foreground/50 hover:text-foreground"
             }`}
@@ -49,5 +58,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {children}
     </div>
+    </>
   );
 }

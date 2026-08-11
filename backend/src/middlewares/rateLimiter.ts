@@ -19,3 +19,20 @@ export const authRateLimiter = rateLimit({
     sendError(res, "Too many requests, please try again later", "RATE_LIMITED", 429);
   },
 });
+
+// Phase 15: a looser limit than authRateLimiter for authenticated
+// write-heavy endpoints that are still worth capping — repeated checkout
+// attempts churning stock reservations, refund/report/review spam, or
+// change-password brute-forcing against a stolen access token. 60/15min is
+// generous for any real user's legitimate use, tight enough to blunt a
+// scripted abuse loop.
+export const writeRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => env.nodeEnv === "test",
+  handler: (_req, res) => {
+    sendError(res, "Too many requests, please try again later", "RATE_LIMITED", 429);
+  },
+});

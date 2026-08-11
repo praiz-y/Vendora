@@ -3,7 +3,7 @@ import { env } from "../../config/env";
 import { asyncHandler } from "../../utils/asyncHandler";
 import { sendSuccess } from "../../utils/apiResponse";
 import { ApiError } from "../../utils/ApiError";
-import { clearRefreshCookie, setRefreshCookie } from "../../utils/cookies";
+import { clearGuestCartCookie, clearRefreshCookie, setRefreshCookie } from "../../utils/cookies";
 import * as authService from "./auth.service";
 import type {
   ChangePasswordInput,
@@ -14,11 +14,20 @@ import type {
 } from "./auth.validation";
 
 function requestMeta(req: Request) {
-  return { userAgent: req.headers["user-agent"], ipAddress: req.ip };
+  return {
+    userAgent: req.headers["user-agent"],
+    ipAddress: req.ip,
+    // Present only for a guest who built an anonymous cart before logging
+    // in/registering — auth.service.ts merges it into the account's own
+    // cart, then this cookie is cleared below regardless (its cart no
+    // longer exists either way, once merged).
+    guestCartToken: req.cookies?.[env.guestCart.cookieName] as string | undefined,
+  };
 }
 
 function sendSession(res: Response, session: authService.SessionResult, message: string) {
   setRefreshCookie(res, session.refreshToken, session.refreshTokenExpiresAt);
+  clearGuestCartCookie(res);
   sendSuccess(res, { user: session.user, accessToken: session.accessToken }, message, 200);
 }
 

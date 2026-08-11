@@ -25,7 +25,7 @@ function WishlistCard({ item }: { item: WishlistItem }) {
       <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded bg-black/5 dark:bg-white/5">
         {image ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={image.url} alt={item.product.name} className="h-full w-full object-cover" />
+          <img src={image.url} alt={item.product.name} loading="lazy" className="h-full w-full object-cover" />
         ) : (
           <span className="text-[10px] text-foreground/40">No image</span>
         )}

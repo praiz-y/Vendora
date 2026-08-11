@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authenticate } from "../../middlewares/authenticate";
-import { authRateLimiter } from "../../middlewares/rateLimiter";
+import { authRateLimiter, writeRateLimiter } from "../../middlewares/rateLimiter";
 import { validate } from "../../middlewares/validate";
 import * as authController from "./auth.controller";
 import {
@@ -34,6 +34,7 @@ router.post(
 router.post(
   "/change-password",
   authenticate,
+  writeRateLimiter,
   validate(changePasswordSchema),
   authController.changePassword
 );

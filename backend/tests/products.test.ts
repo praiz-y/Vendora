@@ -105,6 +105,21 @@ describe("POST /api/v1/products", () => {
     expect(typeof res.body.data.product.digitalVersions[0].fileSize).toBe("string");
   });
 
+  // Phase 15 hardening: Zod's bare .url() accepts non-http schemes
+  // (javascript:, data:, ...) — a product image URL must be restricted to
+  // an actually-fetchable http(s) resource.
+  it("rejects a non-http(s) image URL", async () => {
+    const { seller } = await createActiveSeller();
+    const category = await createActiveCategory();
+
+    const res = await request(app)
+      .post("/api/v1/products")
+      .set("Authorization", `Bearer ${tokenFor(seller)}`)
+      .send({ ...physicalPayload(category.id), images: [{ url: "javascript:alert(1)", isPrimary: true }] });
+
+    expect(res.status).toBe(422);
+  });
+
   it("rejects a FIXED-shipping physical product with no shippingFee", async () => {
     const { seller } = await createActiveSeller();
     const category = await createActiveCategory();
@@ -305,6 +320,29 @@ describe("product lifecycle: submit / moderate / edit / archive", () => {
       .set("Authorization", `Bearer ${adminToken}`);
     expect(secondApprove.status).toBe(409);
     expect(secondApprove.body.error.code).toBe("PRODUCT_NOT_PENDING_REVIEW");
+  });
+
+  // Phase 15 hardening: updateProductSchema simply has no `status` field —
+  // Zod strips unknown keys by default, so this isn't runtime-filtered, it's
+  // structurally impossible to smuggle a moderation-only field through the
+  // seller's own edit endpoint.
+  it("silently ignores an attempt to smuggle a status change through a product edit", async () => {
+    const { seller } = await createActiveSeller();
+    const category = await createActiveCategory();
+    const created = await request(app)
+      .post("/api/v1/products")
+      .set("Authorization", `Bearer ${tokenFor(seller)}`)
+      .send(physicalPayload(category.id));
+    const productId = created.body.data.product.id;
+
+    const res = await request(app)
+      .patch(`/api/v1/products/me/${productId}`)
+      .set("Authorization", `Bearer ${tokenFor(seller)}`)
+      .send({ price: 16000, status: "APPROVED", storeId: "some-other-store" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.product.status).toBe("DRAFT");
+    expect(Number(res.body.data.product.price)).toBe(16000);
   });
 
   it("rejects setting physical-only fields on a digital product", async () => {

@@ -1,6 +1,7 @@
 import { Prisma, type SellerOrderStatus } from "@prisma/client";
 import { prisma } from "../../../config/prisma";
 import { ApiError } from "../../../utils/ApiError";
+import { notify } from "../../../utils/notifications";
 import { buildPaginationMeta, toSkipTake, type PaginationMeta, type PaginationParams } from "../../../utils/pagination";
 import { deriveAndUpdateOrderStatus } from "../orders.service";
 
@@ -76,6 +77,20 @@ export async function updateSellerOrderStatus(storeId: string, sellerOrderId: st
 
   await prisma.sellerOrder.update({ where: { id: sellerOrderId }, data: { status: nextStatus } });
   await deriveAndUpdateOrderStatus(sellerOrder.orderId);
+
+  if (nextStatus === "SHIPPED" || nextStatus === "DELIVERED") {
+    await notify(prisma, {
+      userId: sellerOrder.order.buyerId,
+      type: nextStatus === "SHIPPED" ? "ORDER_SHIPPED" : "ORDER_DELIVERED",
+      title: nextStatus === "SHIPPED" ? "Your order has shipped" : "Your order has been delivered",
+      message:
+        nextStatus === "SHIPPED"
+          ? "Part of your order is on its way."
+          : "Part of your order has been delivered.",
+      relatedEntityType: "SellerOrder",
+      relatedEntityId: sellerOrderId,
+    });
+  }
 
   return getOwnedSellerOrderOrThrow(storeId, sellerOrderId);
 }

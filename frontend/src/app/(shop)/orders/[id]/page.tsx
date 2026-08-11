@@ -7,9 +7,10 @@ import { FormMessage } from "@/components/ui/FormMessage";
 import { useRetryPayment } from "@/features/checkout/hooks";
 import { useCancelOrder, useMyOrder } from "@/features/orders/hooks";
 import { useCreateReview } from "@/features/reviews/hooks";
+import { useRequestRefund } from "@/features/refunds/hooks";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
 import { formatNaira } from "@/lib/currency";
-import type { OrderItem, SellerOrder } from "@/types/order";
+import type { OrderItem, OrderStatus, SellerOrder } from "@/types/order";
 
 const sellerOrderStatusLabel: Record<SellerOrder["status"], string> = {
   PENDING: "Pending",
@@ -102,7 +103,67 @@ function ReviewItemRow({ item }: { item: OrderItem }) {
   );
 }
 
-function SellerOrderCard({ sellerOrder }: { sellerOrder: SellerOrder }) {
+// A rejected refund request doesn't block filing a new one (Phase 13,
+// mirrors product reports' "a dismissed report doesn't block a new one");
+// any other status (REQUESTED/APPROVED/PROCESSED) is shown as read-only.
+function RefundSection({ sellerOrder, orderStatus }: { sellerOrder: SellerOrder; orderStatus: OrderStatus }) {
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const requestRefund = useRequestRefund();
+  const latestRefund = sellerOrder.refunds[0];
+
+  const canRequest =
+    orderStatus !== "PENDING_PAYMENT" && orderStatus !== "CANCELLED" && (!latestRefund || latestRefund.status === "REJECTED");
+
+  if (latestRefund && latestRefund.status !== "REJECTED") {
+    return (
+      <p className="mt-2 text-xs text-foreground/60">
+        Refund {latestRefund.status.toLowerCase()} · {formatNaira(latestRefund.amount)}
+      </p>
+    );
+  }
+
+  if (!canRequest) return null;
+
+  return (
+    <div className="mt-2">
+      {latestRefund?.status === "REJECTED" && !open && !requestRefund.isSuccess && (
+        <p className="mb-1 text-xs text-foreground/50">Your previous refund request was rejected.</p>
+      )}
+      {requestRefund.isSuccess ? (
+        <p className="text-xs text-foreground/50">Refund request submitted.</p>
+      ) : !open ? (
+        <button type="button" onClick={() => setOpen(true)} className="text-xs font-medium underline">
+          Request a refund
+        </button>
+      ) : (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            requestRefund.mutate({ sellerOrderId: sellerOrder.id, reason });
+          }}
+          className="flex flex-col gap-2 rounded-md border border-black/10 p-3 dark:border-white/10"
+        >
+          {requestRefund.isError && <FormMessage type="error">{getErrorMessage(requestRefund.error)}</FormMessage>}
+          <textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Why are you requesting a refund?"
+            rows={2}
+            required
+            minLength={3}
+            className="rounded-md border border-black/15 bg-transparent px-2 py-1.5 text-sm dark:border-white/20"
+          />
+          <Button type="submit" variant="danger" loading={requestRefund.isPending} className="self-start">
+            Submit request
+          </Button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+function SellerOrderCard({ sellerOrder, orderStatus }: { sellerOrder: SellerOrder; orderStatus: OrderStatus }) {
   return (
     <div className="rounded-md border border-black/10 p-4 dark:border-white/10">
       <div className="mb-2 flex items-center justify-between">
@@ -131,6 +192,7 @@ function SellerOrderCard({ sellerOrder }: { sellerOrder: SellerOrder }) {
         <span>Seller total</span>
         <span>{formatNaira(sellerOrder.total)}</span>
       </div>
+      <RefundSection sellerOrder={sellerOrder} orderStatus={orderStatus} />
     </div>
   );
 }
@@ -189,7 +251,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
       <div className="flex flex-col gap-4">
         {order.sellerOrders.map((sellerOrder) => (
-          <SellerOrderCard key={sellerOrder.id} sellerOrder={sellerOrder} />
+          <SellerOrderCard key={sellerOrder.id} sellerOrder={sellerOrder} orderStatus={order.status} />
         ))}
       </div>
 

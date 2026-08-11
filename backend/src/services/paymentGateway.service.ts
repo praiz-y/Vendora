@@ -42,3 +42,23 @@ export async function charge(input: ChargeInput): Promise<ChargeResult> {
     rawResponse: { simulated: true, amount: input.amount, currency: input.currency },
   };
 }
+
+export interface RefundInput {
+  amount: string;
+  currency: string;
+  originalReference: string;
+}
+
+// Phase 13 — same synchronous-because-simulated shape as charge(). No
+// simulateFailure escape hatch: unlike checkout's payment step, Overview
+// §25 doesn't describe a refund-failure path to demonstrate, and the
+// admin's approve decision is the only gate this project models.
+export async function refund(input: RefundInput): Promise<ChargeResult> {
+  const providerReference = `sim_refund_${randomBytes(12).toString("hex")}`;
+
+  return {
+    status: "SUCCESS",
+    providerReference,
+    rawResponse: { simulated: true, amount: input.amount, currency: input.currency, originalReference: input.originalReference },
+  };
+}

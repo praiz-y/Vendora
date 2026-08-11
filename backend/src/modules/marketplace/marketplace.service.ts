@@ -3,7 +3,7 @@ import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
 import { buildPaginationMeta, toSkipTake, type PaginationMeta, type PaginationParams } from "../../utils/pagination";
 import { getProductRatingSummaries, getStoreRatingSummary } from "../reviews/reviews.service";
-import type { ListPublicProductsQuery } from "./marketplace.validation";
+import type { ListPublicProductsQuery, RecordProductViewInput } from "./marketplace.validation";
 
 // Deliberately excludes: status/rejectionReason/reviewedBy (internal
 // moderation fields), digitalVersions (a digital product's fileKey must
@@ -118,4 +118,27 @@ export async function getPublicStoreBySlug(slug: string) {
 
   const rating = await getStoreRatingSummary(store.id);
   return { ...store, rating };
+}
+
+// Phase 11 analytics: the only writer of ProductView (the model has existed
+// since Phase 1). One row per page visit — the frontend calls this once on
+// product-page mount, separately from the data-fetching query, so React
+// Query refetches (refocus, retries) never inflate the count. userId and
+// visitorId are mutually exclusive per row (see the model's own comment):
+// a logged-in view always records userId, never visitorId, even if the
+// client happened to send one.
+export async function recordProductView(slug: string, viewerId: string | undefined, input: RecordProductViewInput) {
+  const product = await prisma.product.findFirst({
+    where: { slug, status: "APPROVED", store: { status: "ACTIVE" } },
+    select: { id: true },
+  });
+  if (!product) throw ApiError.notFound("Product not found.", "PRODUCT_NOT_FOUND");
+
+  await prisma.productView.create({
+    data: {
+      productId: product.id,
+      userId: viewerId ?? null,
+      visitorId: viewerId ? null : input.visitorId ?? null,
+    },
+  });
 }

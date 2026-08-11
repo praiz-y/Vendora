@@ -78,6 +78,211 @@ Then we can start Phase 1 and build Vendora systematically, just like we did wit
 
 
 
+=====================================================
+
+
+
+Colour palette
+
+
+
+Color Palette
+
+Your chosen colors are a good foundation:
+
+Ash Gray #A2C2BE
+Tangelo #EB4600
+Powder #FFFFEB
+
+I'd build a complete design system around them instead of using only three colors.
+
+Primary
+Role	Color
+Primary	#EB4600
+Primary Hover	#CF3D00
+Primary Active	#B83600
+Primary Light	#FFF0E9
+Secondary
+Role	Color
+Secondary	#A2C2BE
+Secondary Hover	#8FB2AD
+Secondary Light	#EAF2F1
+Backgrounds
+Role	Color
+Main Background	#FFFFEB
+Card Background	#FFFFFF
+Alternate Section	#F8F9F7
+Text
+Role	Color
+Heading	#1D1D1D
+Body	#555555
+Muted	#7B7B7B
+Light	#9A9A9A
+Borders
+Role	Color
+Border	#E7E7DD
+Divider	#EFEFDF
+Status Colors
+Status	Color
+Success	#2E8B57
+Warning	#F0A500
+Error	#D64545
+Info	#3B82F6
+Rating
+Gold
+#F5B301
+Badges
+
+Approved
+
+Background
+#DFF6E7
+
+Text
+#147A3F
+
+Pending
+
+Background
+#FFF5D6
+
+Text
+#B7791F
+
+Rejected
+
+Background
+#FFE5E5
+
+Text
+#B42318
+
+
+
+
+
+
+
+
+
+]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]]
+
+Announcement Bar
+
+- Infinite marquee.
+- Not bouncing.
+
+Not restarting awkwardly.
+
+A smooth continuous loop.
+
+- Around 36–40px high.
+
+Background:
+
+Tangelo
+
+#EB4600
+
+White text.
+Examples:
+
+🎉 Free shipping from selected stores this week!
+
+Become a seller and open your own store today.
+
+New digital products added every day.
+
+Welcome to Vendora.
+
+Summer Sale starts Monday.
+
+Browse thousands of products from trusted sellers.
+
+Admin Control
+
+Keep it intentionally simple.
+
+One table:
+
+Announcement
+
+Text
+Enabled
+Last Updated
+Updated By
+
+No need for multiple announcements initially.
+
+Just one active message.
+
+Character limit:
+
+I'd recommend
+
+150 characters
+
+
+========================
+
+
+NAVBAR
+
+Desktop Navbar
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

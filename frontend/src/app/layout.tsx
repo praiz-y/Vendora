@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { QueryProvider } from "@/components/providers/QueryProvider";
+import { ToastContainer } from "@/components/ui/Toast";
+import { env } from "@/config/env";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -14,9 +16,28 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteDescription =
+  "Vendora is a multi-vendor marketplace — shop physical and digital products from independent sellers, or open your own store.";
+
 export const metadata: Metadata = {
-  title: "Vendora",
-  description: "Vendora — a multi-vendor e-commerce marketplace",
+  metadataBase: new URL(env.siteUrl),
+  title: {
+    default: "Vendora — Multi-Vendor Marketplace",
+    template: "%s | Vendora",
+  },
+  description: siteDescription,
+  openGraph: {
+    siteName: "Vendora",
+    title: "Vendora — Multi-Vendor Marketplace",
+    description: siteDescription,
+    type: "website",
+    locale: "en_NG",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Vendora — Multi-Vendor Marketplace",
+    description: siteDescription,
+  },
 };
 
 export default function RootLayout({
@@ -33,6 +54,7 @@ export default function RootLayout({
         <QueryProvider>
           <AuthProvider>{children}</AuthProvider>
         </QueryProvider>
+        <ToastContainer />
       </body>
     </html>
   );

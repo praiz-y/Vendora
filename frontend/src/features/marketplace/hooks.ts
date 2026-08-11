@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { getVisitorId } from "@/lib/visitorId";
 import { marketplaceApi, type ListMarketplaceProductsParams } from "./api";
 
 export function useMarketplaceProducts(params: ListMarketplaceProductsParams) {
@@ -26,4 +28,21 @@ export function useMarketplaceStore(slug: string) {
     select: (data) => data.store,
     enabled: !!slug,
   });
+}
+
+// Fire-and-forget, once per slug per mount — deliberately not a TanStack
+// Query mutation/query (nothing renders off its result, and a query would
+// re-fire on every refetch/refocus, inflating the view count it's supposed
+// to measure).
+export function useRecordProductView(slug: string | undefined) {
+  const recorded = useRef<string | undefined>(undefined);
+
+  useEffect(() => {
+    if (!slug || recorded.current === slug) return;
+    recorded.current = slug;
+    marketplaceApi.recordView(slug, getVisitorId()).catch(() => {
+      // Best-effort analytics — a failed view record should never surface
+      // as a user-facing error.
+    });
+  }, [slug]);
 }

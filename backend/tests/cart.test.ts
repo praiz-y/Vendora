@@ -113,9 +113,16 @@ afterAll(async () => {
 });
 
 describe("GET /api/v1/cart", () => {
-  it("requires authentication", async () => {
+  // Overhaul Phase 3: cart is guest-accessible now — login is only required
+  // at checkout, not at add-to-cart. An anonymous request gets a
+  // freshly-created, empty guest cart instead of a 401.
+  it("returns an empty guest cart when unauthenticated, and sets a guest cart cookie", async () => {
     const res = await request(app).get("/api/v1/cart");
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(200);
+    expect(res.body.data.cart.items).toEqual([]);
+    const setCookie = (res.headers["set-cookie"] ?? []) as unknown as string[];
+    expect(setCookie.some((c) => c.startsWith("vendora_guest_cart="))).toBe(true);
+    expect(setCookie.some((c) => c.includes("HttpOnly"))).toBe(true);
   });
 
   it("returns an empty cart for a fresh user", async () => {
@@ -123,6 +130,65 @@ describe("GET /api/v1/cart", () => {
     const res = await request(app).get("/api/v1/cart").set("Authorization", `Bearer ${tokenFor(user)}`);
     expect(res.status).toBe(200);
     expect(res.body.data.cart.items).toEqual([]);
+  });
+});
+
+describe("guest cart (anonymous)", () => {
+  it("persists items across requests via the guest cart cookie", async () => {
+    const agent = request.agent(app);
+    const store = await createStore();
+    const category = await createCategory();
+    const product = await createPhysicalProduct(store.id, category.id, { stockQuantity: 5 });
+
+    const added = await agent.post("/api/v1/cart/items").send({ productId: product.id, quantity: 2 });
+    expect(added.status).toBe(201);
+    expect(added.body.data.cart.items).toHaveLength(1);
+
+    const fetched = await agent.get("/api/v1/cart");
+    expect(fetched.status).toBe(200);
+    expect(fetched.body.data.cart.items).toHaveLength(1);
+    expect(fetched.body.data.cart.items[0].quantity).toBe(2);
+  });
+
+  it("gives two different guests separate, isolated carts", async () => {
+    const agentA = request.agent(app);
+    const agentB = request.agent(app);
+    const store = await createStore();
+    const category = await createCategory();
+    const product = await createPhysicalProduct(store.id, category.id, { stockQuantity: 5 });
+
+    await agentA.post("/api/v1/cart/items").send({ productId: product.id, quantity: 1 });
+    const cartB = await agentB.get("/api/v1/cart");
+    expect(cartB.body.data.cart.items).toEqual([]);
+  });
+
+  it("an authenticated request uses the user's own cart, never a guest cookie's cart", async () => {
+    const agent = request.agent(app);
+    const store = await createStore();
+    const category = await createCategory();
+    const product = await createPhysicalProduct(store.id, category.id, { stockQuantity: 5 });
+    await agent.post("/api/v1/cart/items").send({ productId: product.id, quantity: 1 });
+
+    const user = await createUser();
+    const authed = await agent.get("/api/v1/cart").set("Authorization", `Bearer ${tokenFor(user)}`);
+    expect(authed.body.data.cart.items).toEqual([]);
+  });
+
+  it("404s updating or removing an item from a different guest's cart", async () => {
+    const agentA = request.agent(app);
+    const agentB = request.agent(app);
+    const store = await createStore();
+    const category = await createCategory();
+    const product = await createPhysicalProduct(store.id, category.id, { stockQuantity: 5 });
+
+    const added = await agentA.post("/api/v1/cart/items").send({ productId: product.id, quantity: 1 });
+    const itemId = added.body.data.cart.items[0].id;
+
+    const patchRes = await agentB.patch(`/api/v1/cart/items/${itemId}`).send({ quantity: 2 });
+    expect(patchRes.status).toBe(404);
+
+    const deleteRes = await agentB.delete(`/api/v1/cart/items/${itemId}`);
+    expect(deleteRes.status).toBe(404);
   });
 });
 

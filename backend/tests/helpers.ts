@@ -11,6 +11,7 @@ import { prisma } from "../src/config/prisma";
 // User safe to delete further down (all Restrict-referenced by Order/
 // SellerOrder/OrderItem/DigitalEntitlement).
 export async function resetDatabase(): Promise<void> {
+  await prisma.announcement.deleteMany();
   await prisma.digitalEntitlement.deleteMany();
   await prisma.order.deleteMany();
   await prisma.stockReservation.deleteMany();

@@ -12,3 +12,10 @@ export const listPublicProductsQuerySchema = z.object({
   limit: z.coerce.number().int().positive().optional(),
 });
 export type ListPublicProductsQuery = z.infer<typeof listPublicProductsQuerySchema>;
+
+// visitorId is a client-generated anonymous id (Phase 11 analytics) — only
+// meaningful for anonymous viewers, ignored server-side for logged-in ones.
+export const recordProductViewSchema = z.object({
+  visitorId: z.string().trim().min(1).max(100).optional(),
+});
+export type RecordProductViewInput = z.infer<typeof recordProductViewSchema>;

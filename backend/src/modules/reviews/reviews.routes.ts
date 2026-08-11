@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { authenticate } from "../../middlewares/authenticate";
 import { requireActiveSeller } from "../../middlewares/authorize";
+import { writeRateLimiter } from "../../middlewares/rateLimiter";
 import { validate } from "../../middlewares/validate";
 import * as reviewsController from "./reviews.controller";
 import { createReviewSchema, listProductReviewsQuerySchema } from "./reviews.validation";
@@ -14,6 +15,6 @@ router.get("/", validate(listProductReviewsQuerySchema, "query"), reviewsControl
 // Fills in Phase 3's Seller Dashboard "Reviews" placeholder.
 router.get("/me/store", authenticate, requireActiveSeller, reviewsController.listMyStoreReviews);
 
-router.post("/", authenticate, validate(createReviewSchema), reviewsController.create);
+router.post("/", authenticate, writeRateLimiter, validate(createReviewSchema), reviewsController.create);
 
 export default router;

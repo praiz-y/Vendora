@@ -12,6 +12,10 @@ export const orderInclude = {
       // `review` lets the buyer UI show "leave a review" only for items
       // that don't have one yet, without a separate lookup per item.
       items: { include: { review: { select: { id: true } } } },
+      // Most-recent refund only — a rejected request doesn't block a new
+      // one (Phase 13), so there can be more than one row, but the UI only
+      // ever needs to know the latest state.
+      refunds: { orderBy: { createdAt: "desc" as const }, take: 1 },
     },
   },
 } satisfies Prisma.OrderInclude;

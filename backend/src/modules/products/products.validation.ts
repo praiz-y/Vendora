@@ -1,9 +1,10 @@
 import { z } from "zod";
+import { httpUrlSchema } from "../../utils/validation";
 
 // Cloudinary isn't integrated yet (see .ai/project-context.md) — images are
 // plain URLs for now, same pattern as Store logo/banner in Phase 3.
 const productImageSchema = z.object({
-  url: z.string().trim().url(),
+  url: httpUrlSchema,
   isPrimary: z.boolean().optional(),
 });
 export type ProductImageInput = z.infer<typeof productImageSchema>;

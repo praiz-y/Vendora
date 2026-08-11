@@ -14,7 +14,12 @@ export const env = {
   nodeEnv: process.env.NODE_ENV ?? "development",
   isProduction,
   port: Number(process.env.PORT ?? 4000),
-  databaseUrl: process.env.DATABASE_URL,
+  // Prisma itself reads DATABASE_URL directly from the environment (see
+  // schema.prisma's datasource block) — this copy is only for the app's
+  // own fail-fast validation at boot, so a missing value surfaces as a
+  // clear startup error instead of a confusing connection failure on the
+  // first query.
+  databaseUrl: required("DATABASE_URL"),
   frontendUrl: required("FRONTEND_URL", "http://localhost:3000"),
   jwt: {
     accessSecret: required(
@@ -31,6 +36,13 @@ export const env = {
     // days
     ttlDays: Number(process.env.REFRESH_TOKEN_TTL_DAYS ?? 30),
     cookieName: "vendora_refresh_token",
+  },
+  guestCart: {
+    // days — longer than the refresh token's default 30, since an
+    // abandoned anonymous cart is lower-stakes than a session and still
+    // worth honoring if the same browser comes back later.
+    ttlDays: Number(process.env.GUEST_CART_TTL_DAYS ?? 90),
+    cookieName: "vendora_guest_cart",
   },
   passwordReset: {
     ttlMinutes: Number(process.env.PASSWORD_RESET_TOKEN_TTL_MINUTES ?? 30),

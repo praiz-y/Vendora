@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
+import { notify } from "../../utils/notifications";
 import { buildPaginationMeta, toSkipTake, type PaginationMeta, type PaginationParams } from "../../utils/pagination";
 import type { CreateReviewInput } from "./reviews.validation";
 
@@ -17,7 +18,10 @@ const reviewInclude = {
 export async function createReview(userId: string, input: CreateReviewInput) {
   const orderItem = await prisma.orderItem.findUnique({
     where: { id: input.orderItemId },
-    include: { sellerOrder: { include: { order: { select: { buyerId: true } } } } },
+    include: {
+      sellerOrder: { include: { order: { select: { buyerId: true } } } },
+      product: { select: { name: true, store: { select: { sellerId: true } } } },
+    },
   });
   if (!orderItem) throw ApiError.notFound("Order item not found.", "ORDER_ITEM_NOT_FOUND");
 
@@ -30,8 +34,9 @@ export async function createReview(userId: string, input: CreateReviewInput) {
     throw ApiError.conflict("You can only review an item after it has been delivered.", "ORDER_ITEM_NOT_DELIVERED");
   }
 
+  let review;
   try {
-    return await prisma.review.create({
+    review = await prisma.review.create({
       data: {
         userId,
         productId: orderItem.productId,
@@ -47,6 +52,17 @@ export async function createReview(userId: string, input: CreateReviewInput) {
     }
     throw error;
   }
+
+  await notify(prisma, {
+    userId: orderItem.product.store.sellerId,
+    type: "NEW_REVIEW",
+    title: "New review on your product",
+    message: `"${orderItem.product.name}" received a new ${input.rating}-star review.`,
+    relatedEntityType: "Review",
+    relatedEntityId: review.id,
+  });
+
+  return review;
 }
 
 export interface ListProductReviewsParams extends PaginationParams {

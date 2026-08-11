@@ -1,4 +1,5 @@
 import type { Address } from "./user";
+import type { Refund } from "./refund";
 
 export type OrderStatus =
   | "PENDING_PAYMENT"
@@ -42,6 +43,9 @@ export interface SellerOrder {
   updatedAt: string;
   store: { id: string; name: string; slug: string };
   items: OrderItem[];
+  // Most-recent refund request only, if any (a rejected one doesn't block
+  // filing a new one, so this is never a full history).
+  refunds: Refund[];
 }
 
 export interface SellerOrderWithBuyer extends SellerOrder {

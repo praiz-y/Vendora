@@ -3,7 +3,7 @@ import { asyncHandler } from "../../utils/asyncHandler";
 import { sendSuccess } from "../../utils/apiResponse";
 import { parsePagination } from "../../utils/pagination";
 import * as marketplaceService from "./marketplace.service";
-import type { ListPublicProductsQuery } from "./marketplace.validation";
+import type { ListPublicProductsQuery, RecordProductViewInput } from "./marketplace.validation";
 
 export const listProducts = asyncHandler(async (req: Request, res: Response) => {
   const query = req.query as unknown as ListPublicProductsQuery;
@@ -31,4 +31,9 @@ export const getProductBySlug = asyncHandler(async (req: Request, res: Response)
 export const getStoreBySlug = asyncHandler(async (req: Request, res: Response) => {
   const store = await marketplaceService.getPublicStoreBySlug(req.params.slug);
   sendSuccess(res, { store }, "Store retrieved.");
+});
+
+export const recordView = asyncHandler(async (req: Request, res: Response) => {
+  await marketplaceService.recordProductView(req.params.slug, req.user?.id, req.body as RecordProductViewInput);
+  sendSuccess(res, {}, "View recorded.");
 });

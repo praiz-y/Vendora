@@ -1,4 +1,5 @@
 import type { NextFunction, Request, Response } from "express";
+import { env } from "../config/env";
 import { ApiError } from "../utils/ApiError";
 import { sendError } from "../utils/apiResponse";
 
@@ -18,7 +19,11 @@ export function errorHandler(
     return;
   }
 
-  const message = err instanceof Error ? err.message : "Something went wrong";
+  // The real message is always logged server-side. It's only ever sent to
+  // the client outside production — an unexpected error's raw message
+  // (e.g. a Prisma error naming a column/table) is exactly the kind of
+  // internal detail an attacker shouldn't get for free in production.
   console.error("Unhandled error:", err);
+  const message = env.nodeEnv === "production" ? "Something went wrong" : err instanceof Error ? err.message : "Something went wrong";
   sendError(res, message, "INTERNAL_ERROR", 500);
 }

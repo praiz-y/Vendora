@@ -14,7 +14,7 @@ export function ProductCard({ product }: { product: PublicProduct }) {
       <div className="relative flex aspect-square items-center justify-center bg-black/5 dark:bg-white/5">
         {image ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={image.url} alt={product.name} className="h-full w-full object-cover" />
+          <img src={image.url} alt={product.name} loading="lazy" className="h-full w-full object-cover" />
         ) : (
           <span className="text-xs text-foreground/40">No image</span>
         )}

@@ -54,8 +54,14 @@ behaviors agreed on for V1:
   `src/modules/checkout/` (Phase 7), `src/modules/orders/` (+ its `seller/`
   sub-module, Phase 8), `src/modules/entitlements/` (Phase 9),
   `src/modules/reviews/`, `src/modules/productReports/` (+ its `admin/`
-  sub-module, Phase 10) — feature modules built on top of the Phase 0/1
-  foundation
+  sub-module, Phase 10), `src/modules/sellerDashboard/` (Phase 11),
+  `src/modules/notifications/` (Phase 12), `src/modules/refunds/` (+ its
+  `admin/` sub-module, Phase 13), `src/modules/adminDashboard/`,
+  `src/modules/auditLogs/`, `src/modules/users/admin/` (Phase 14) —
+  feature modules built on top of the Phase 0/1 foundation
+- `src/utils/notifications.ts` — shared `notify()`, the one entry point
+  for writing to `Notification` (Phase 12), mirroring `recordAuditLog()`'s
+  pattern
 - `src/services/paymentGateway.service.ts` — simulated payment provider
   (Phase 7), written to the interface a real provider integration would
   implement
@@ -109,15 +115,22 @@ consistent envelope (see "API Response Format" below).
 
 ## Current Development Phase
 
-**Phase 10: Reviews + Reports — complete.** See
-[`.ai/reports/phase-10-report.md`](reports/phase-10-report.md),
+**Phase 17: SEO + Production Readiness — complete.** Every feature phase
+(0-14) plus Phases 15-17's hardening/polish/readiness passes are done;
+only Phase 18 (Deployment + Launch) remains. See
+[`.ai/reports/phase-17-report.md`](reports/phase-17-report.md),
+[`phase-16-report.md`](reports/phase-16-report.md),
+[`phase-15-report.md`](reports/phase-15-report.md),
+[`phase-14-report.md`](reports/phase-14-report.md),
+[`phase-13-report.md`](reports/phase-13-report.md),
+[`phase-12-report.md`](reports/phase-12-report.md),
+[`phase-11-report.md`](reports/phase-11-report.md),
+[`phase-10-report.md`](reports/phase-10-report.md),
 [`phase-9-report.md`](reports/phase-9-report.md),
 [`phase-8-report.md`](reports/phase-8-report.md), and
 [`phase-7-report.md`](reports/phase-7-report.md) for what was actually
 built and verified (Phase 0: `phase-0-report.md` through Phase 6:
-`phase-6-report.md` for everything earlier). Phase 11 starts next, pending
-direction from the user — this project explicitly stops at the end of each
-phase for review.
+`phase-6-report.md` for everything earlier). Phase 18 starts next.
 
 **Full phase breakdown**: see
 [`docs/roadmap.md`](../docs/roadmap.md) — the authoritative phase-by-phase
@@ -243,7 +256,7 @@ Dashboard." Phase *numbers* elsewhere are unchanged.
 - **Automated backend tests run against a second, dedicated Postgres
   container** (`vendora-postgres-test`, port 5435) — not the dev database —
   via `backend/.env.test` and `vitest` + `supertest`. `npm test` from
-  `backend/` runs the suite (165 tests as of Phase 10).
+  `backend/` runs the suite (208 tests as of Phase 15).
 - **Store slugs are generated once, at approval, and never regenerated on
   rename** (`stores.service.generateUniqueStoreSlug`, called only from the
   admin approve flow). Marketplace/store URLs (Phase 5) will depend on slug
@@ -449,13 +462,201 @@ Dashboard." Phase *numbers* elsewhere are unchanged.
   cross the limit on its own. Restarting the backend dev process resets
   the in-memory counter; this happened repeatedly during Phase 10's
   verification pass and is expected, not a bug.
+- **`ProductView` gets its first (and only) writer in Phase 11**:
+  `POST /marketplace/products/:slug/view`, deliberately a separate endpoint
+  from the product-fetch `GET`, and deliberately not a TanStack Query
+  query/mutation on the frontend (`useRecordProductView`) — a query would
+  re-fire on every refetch/window-refocus and inflate the exact count it's
+  supposed to measure. `userId`/`visitorId` stay mutually exclusive per row
+  (the model's own Phase 1 comment): a logged-in request's `visitorId` is
+  discarded server-side even if the client sends one.
+- **Seller-dashboard revenue/sales figures filter on the parent `Order`'s
+  status, not mere `SellerOrder` existence** (Phase 11) — a `SellerOrder`
+  row exists as soon as checkout builds the order graph (Phase 7), before
+  the payment attempt runs, so counting every row would inflate revenue
+  with failed/still-`PENDING_PAYMENT` checkouts.
+- **Per-product analytics revenue is computed by reducing raw `OrderItem`
+  rows in application code, not a Prisma `groupBy._sum`** (Phase 11) —
+  revenue is `quantity × priceSnapshot`, a product of two columns, which
+  `groupBy`'s single-column `_sum` can't express in one aggregate call.
+- **`notify()` (`src/utils/notifications.ts`, Phase 12) mirrors
+  `recordAuditLog()`'s exact shape** — accepts either the shared Prisma
+  client or an active transaction client, so a notification commits
+  atomically with the state change that triggered it. Wired into every
+  existing flow the `NotificationType` enum already covers (seller
+  application approve/reject, product approve/reject, checkout payment
+  success + order placed, seller-order shipped/delivered, review
+  creation); `REFUND_UPDATE` has no trigger yet — that's wired in when
+  Phase 13 builds refunds.
+- **The notification bell polls every 30s rather than pushing** — this
+  project has no websocket/push infrastructure, and Overview §33 scopes
+  Phase 12 to "in-app first" only.
+- **Hard navigations (`page.goto`/`page.reload`) re-trigger
+  `AuthProvider`'s bootstrap `/auth/refresh`, which counts against the
+  same rate limiter as login/register** — confirmed as the actual cause of
+  repeated rate-limit exhaustion in Phase 10/11/12's browser verification.
+  Routing Playwright scripts through in-app `<Link>` clicks (SPA
+  navigation) instead of `page.goto` wherever possible avoids this;
+  worth doing by default in any future browser verification, not just
+  when a script has already started failing.
+- **A refund always covers a whole `SellerOrder`, at its full total**
+  (Phase 13) — no partial-item or custom-amount refunds in V1, matching
+  Overview §25's "basic refunds" and every other per-seller operation this
+  project already has. `Refund.amount` is always derived from
+  `SellerOrder.total`, never client-supplied.
+- **Approving a refund goes straight to `PROCESSED`, skipping a lingering
+  `APPROVED` state** (Phase 13) — the payment gateway is
+  simulated/synchronous, same precedent as checkout (Phase 7).
+  `RefundStatus.APPROVED` exists in the schema for a real, asynchronous
+  provider to use later.
+- **List endpoints for a schema field with more scope options than the
+  current phase actually uses should filter to the scope that's
+  actually supported** (Phase 13, `refunds.service.ts`/
+  `refunds.admin.service.ts`: `sellerOrderId: { not: null }`) — found the
+  hard way when a Phase-1-era seed row scoped to `orderItemId` (written
+  before this phase decided the real scope) crashed the admin refunds
+  screen, which only knows how to render a SellerOrder-scoped refund.
+- **Prisma's 5s default interactive-transaction timeout isn't always
+  enough under this sandbox's occasional slowdowns** — checkout's three
+  `$transaction` calls now pass an explicit 15s timeout
+  (`TRANSACTION_OPTIONS`, Phase 13) after a live "transaction already
+  closed" error that the (unaffected, still-green) automated test suite
+  never hit. The transactions themselves aren't inherently slow; the
+  environment sometimes is.
+- **Suspending a user's account and suspending their store are two
+  independent admin actions** (Phase 14) — reaffirms Phase 3's "seller
+  status is a capability, not a role": a store suspension never touches
+  the underlying account's buyer capabilities, and an account suspension
+  (which blocks login entirely) is separate from whatever the store's own
+  status is.
+- **An admin account can never be suspended** (Phase 14,
+  `users.admin.service.ts`) — enforced server-side (`400
+  CANNOT_SUSPEND_ADMIN`), not just hidden in the UI.
+- **Suspending a user revokes every refresh token they currently hold**
+  (Phase 14) — the same "revoke every session" precedent as a Phase 2
+  password reset, just admin-triggered instead of self-triggered.
+- **Two rate limiters, not one** (Phase 15): `authRateLimiter` (20/15min)
+  for credential-stuffing-prone endpoints, `writeRateLimiter` (60/15min,
+  `src/middlewares/rateLimiter.ts`) for authenticated write-heavy ones
+  (checkout, refunds, reviews, product reports, change-password) — the
+  two have different abuse profiles, so one shared threshold would be
+  wrong for at least one of them.
+- **Password-adjacent fields that get compared against an existing hash
+  are bounded too, not just newly-chosen passwords** (Phase 15,
+  `auth.validation.ts`) — an unbounded string sent into
+  `bcrypt.compare` is a real DoS vector regardless of whether it's a
+  login attempt or a change-password's `currentPassword`.
+- **`httpUrlSchema` (`src/utils/validation.ts`, Phase 15) replaces bare
+  Zod `.url()` everywhere an image/logo/banner URL is accepted** — plain
+  `.url()` accepts any WHATWG-valid scheme, including `javascript:`/
+  `data:`, which a URL field has no legitimate reason to hold.
+- **Unhandled (non-`ApiError`) error messages are generic in production,
+  detailed elsewhere** (Phase 15, `errorHandler.ts`) — the real message is
+  always logged server-side either way; sending it to the client in
+  production is exactly the kind of internal detail (e.g. a Prisma error
+  naming a real column) an attacker shouldn't get for free.
+- **No raw SQL (`$queryRaw`/`$executeRaw`) and no `.passthrough()` Zod
+  schema anywhere in the codebase** (confirmed, Phase 15) — SQL injection
+  and mass-assignment are structurally impossible here, not merely
+  avoided by convention. Keep it that way: reach for Prisma's query
+  builder and plain `z.object()` even when a raw query or a passthrough
+  schema would be less code.
+- **Frontend security headers live in `next.config.ts`'s `headers()`**
+  (Phase 15) — `X-Frame-Options`, `X-Content-Type-Options`,
+  `Referrer-Policy`, `Permissions-Policy`. No CSP yet (see What Should Not
+  Be Implemented Yet) — a config change here requires a dev-server
+  restart to take effect, unlike most frontend edits.
+- **`aria-label` over adding a visible `<label>`, for compact inputs that
+  already shipped with only placeholder text as identification** (Phase
+  16: site search, inline quantity inputs, filter selects) — gets the
+  same accessible-name result without a layout change to already-shipped
+  pages. A field that already had a visible `<label>` needed no change;
+  this pattern is specifically for the placeholder-only gaps this phase's
+  audit found.
+- **`loading="lazy"` is applied per-image, not globally** (Phase 16) —
+  every grid/thumbnail/list-item image gets it, but a page's likely
+  Largest Contentful Paint candidate (the product detail page's main
+  photo) deliberately keeps default eager loading. Apply this same
+  hero-vs-thumbnail judgment to any future image addition rather than
+  reaching for a blanket rule.
+- **Un-breakpointed `grid-cols-3`+ is the one responsive anti-pattern to
+  grep for** (Phase 16 audit: `grep` for `grid-cols-[3-9]` without an
+  accompanying `sm:`/`md:`/`lg:` on the same class list) — found exactly
+  one real instance app-wide (seller analytics' stat cards) across
+  Phases 0-14's entire UI, so this is a narrow, specific check, not a
+  sign of a systemic layout problem.
+- **`NEXT_PUBLIC_SITE_URL` (Phase 17) is a separate env var from
+  `NEXT_PUBLIC_API_URL`** — the frontend's own public origin
+  (`metadataBase`, canonical URLs, sitemap/robots URLs) is not the same
+  thing as the backend API's origin; conflating them breaks the moment
+  frontend and backend live on different domains in production.
+- **`/products/[slug]` and `/stores/[slug]` are Server Component
+  `page.tsx` files wrapping a client `*DetailClient.tsx` (Phase 17)** —
+  Next.js's Metadata API (`generateMetadata`) only works in Server
+  Components, and every page in this app was `"use client"` before this
+  phase. The server wrapper does its own plain `fetch()` to the public
+  marketplace API (never the client `apiClient`, which depends on
+  browser-only auth state) to build metadata and JSON-LD, then renders
+  the untouched client component for the actual interactive page. A
+  failed server-side fetch falls back to generic metadata rather than
+  calling `notFound()`, so the client component's existing "not found" UI
+  stays the actual source of truth for that state.
+- **A layout that sets its own `title` must re-declare `title.template`
+  too, not rely on inheriting the root's** (Phase 17,
+  `/products/layout.tsx`) — a plain-string title at an intermediate
+  layout silently stops the root template from reaching routes nested
+  below it. Found via live-browser testing (the product page's `<title>`
+  was missing the " | Vendora" suffix the listing page correctly had),
+  not assumed from documentation. Worth remembering for any future
+  layout that sets its own title.
+- **JSON-LD is embedded via one shared `jsonLdScriptProps()` helper**
+  (`frontend/src/lib/jsonLd.ts`, Phase 17) that escapes `<` before
+  `dangerouslySetInnerHTML` — `JSON.stringify` alone does not escape a
+  literal `</script>` sequence, so an unescaped embed of seller-provided
+  text (a product/store description) could let the browser's HTML parser
+  close the script tag early. Any future JSON-LD embed should go through
+  this helper, not a raw `JSON.stringify` + `dangerouslySetInnerHTML`.
+- **`sitemap.ts`'s product/store fetch must never throw** (Phase 17) — it
+  runs during the production build and again on every ISR revalidation;
+  a transient backend outage at that moment must degrade to "just the
+  static routes," not fail the entire frontend build. Found the hard way:
+  the first version crashed `next build` with `ECONNREFUSED` when the
+  backend happened to be down: wrapped in try/catch, falls back to an
+  empty product list.
+- **Store slugs for the sitemap are derived from the product listing, not
+  a new backend endpoint** (Phase 17) — no public "list stores" endpoint
+  exists (`marketplace.routes.ts` only exposes `GET /stores/:slug`), and
+  adding one solely for the sitemap would be unrequested backend scope.
+- **`noindex` on `admin`/`seller`/`account` (Phase 17) is a `<meta>` tag
+  rendered directly in each `"use client"` layout's JSX**, not a Server
+  Component rewrite — React/Next.js hoist `<meta>`/`<title>`/`<link>`
+  tags rendered anywhere in the tree into `<head>` automatically, which
+  avoids extracting `useRequireAdmin`/`useRequireActiveSeller`/
+  `useRequireAuth`'s gating logic out of the layout just for this one
+  tag. In practice `proxy.ts`'s middleware already redirects
+  unauthenticated requests to these routes with a server-side `307`
+  before any HTML renders, so the tag's real audience is an
+  **authenticated** render that got indexed or linked some other way —
+  defense in depth, not the primary exclusion mechanism (that's
+  robots.txt).
+- **`/api/v1/health` verifies database connectivity and returns `503` if
+  unreachable** (Phase 17), rather than unconditionally returning `200`
+  — a liveness/readiness probe that can't detect a DB outage isn't
+  checking the thing that actually matters for whether the app can serve
+  traffic.
+- **No process-level `uncaughtException`/`unhandledRejection` handlers
+  were added** (Phase 17, deliberate) — the standard Node.js production
+  model is to let the process crash and have a supervisor restart it, not
+  swallow an exception and keep running in a possibly-corrupted state.
+  This project has no process supervisor yet (Phase 18); adding
+  catch-all handlers now would work against that eventual setup, not
+  with it.
 
 ## Development Rules
 
-- Do not build feature UI (seller-dashboard Dashboard/Analytics tabs,
-  admin screens beyond seller-application review/categories/product
-  moderation/product reports/refunds-not-yet-built) until the phase that
-  owns it — see `docs/roadmap.md`.
+- Do not build feature UI (Admin Dashboard Polish's overview/audit-log/
+  user-management screens — Phase 14) until the phase that owns it — see
+  `docs/roadmap.md`. Every other planned admin/seller screen now exists.
 - Payments are simulated (Phase 7); do not integrate a real provider
   without the user explicitly providing credentials and re-confirming —
   keep the schema/architecture provider-agnostic regardless.
@@ -592,25 +793,148 @@ Dashboard." Phase *numbers* elsewhere are unchanged.
   closure and an honest account of auth-rate-limiter flakiness hit during
   this phase's own verification pass (resolved each time by restarting
   the backend dev process; not a product defect).
+- **Phase 11**: `ProductView`'s first writer (`POST
+  /marketplace/products/:slug/view`, optional auth, mutually-exclusive
+  `userId`/`visitorId`); `GET /seller-dashboard/overview` (product/order
+  counts, total revenue, rating, recent orders) and `GET
+  /seller-dashboard/analytics` (views/units-sold/revenue, total and
+  per-product); `/seller` (Dashboard) and `/seller/analytics` are now real
+  — every Seller Dashboard tab from Phase 3's shell is now filled in.
+  12 new automated backend tests (172 total). Full details in
+  `.ai/reports/phase-11-report.md`; verification was a single clean
+  live-browser pass with no rate-limiter friction (kept the anonymous half
+  of the check auth-free specifically to conserve that budget after
+  Phase 10's pass exhausted it repeatedly).
+- **Phase 12**: `notify()` shared util wired into every existing flow the
+  `NotificationType` enum already covers (seller application
+  approve/reject, product approve/reject, checkout payment success +
+  order placed, seller-order shipped/delivered, review creation);
+  `GET /notifications`, `POST /notifications/:id/read`,
+  `POST /notifications/read-all`; `NotificationBell` mounted in
+  `SiteHeader`, `/account`, and `/seller`'s layouts, polling every 30s.
+  10 new automated backend tests (182 total). Full details in
+  `.ai/reports/phase-12-report.md`; live-browser verification deliberately
+  routed through in-app link clicks instead of hard navigations to avoid
+  the rate-limiter exhaustion Phase 10/11 hit repeatedly — confirmed both
+  a real checkout producing live notifications for buyer and seller, and
+  both mark-as-read and mark-all-as-read correctly updating the unread
+  badge.
+- **Phase 13**: `POST /refunds` (SellerOrder-scoped, full-total-only,
+  gated on the order actually being paid) and `GET /refunds/me`;
+  `GET/POST /admin/refunds/...` (list/detail/approve→`PROCESSED`/reject),
+  the admin shell's next consumer; `Payment.status` derivation
+  (`REFUNDED`/`PARTIALLY_REFUNDED`) recomputed on every approval;
+  `REFUND_UPDATE` notifications (Phase 12's one unwired enum value) now
+  fire on approve/reject; `/orders/[id]` gained a "Request a refund"
+  control per SellerOrder, and `/admin/refunds[/[id]]` are new. 12 new
+  automated backend tests (191 total). Full details in
+  `.ai/reports/phase-13-report.md`, including two real bugs found and
+  fixed via this phase's own browser verification: a pre-existing Phase 1
+  seed row scoped to `orderItemId` (predating this phase's real
+  sellerOrderId-only scope decision) crashed the admin refunds screen —
+  fixed the seed row, added a defensive query filter, and re-seeded the
+  dev database; and a genuine "transaction already closed" error under
+  sandbox load (not the automated suite, which stayed green throughout)
+  led to raising checkout's interactive-transaction timeout to 15s.
+- **Phase 14** (the last roadmap phase before cross-cutting
+  hardening/polish, 15-18): `GET /admin-dashboard/overview` (platform-wide
+  stats + a pending-actions list linking into every existing admin
+  queue); `GET /admin/audit-logs` (the first real UI for `AuditLog`,
+  Phase 1); `GET/POST /admin/users/...` (list/detail/suspend-reactivate
+  account/suspend-reactivate store — the actual gap, since nothing
+  before this phase ever *set* a user or store to `SUSPENDED`, only
+  enforced it once set). `/admin` replaced its Phase 3 redirect stub with
+  a real overview page; `/admin/audit-logs` and `/admin/users[/[id]]` are
+  new. 12 new automated backend tests (203 total). Full details in
+  `.ai/reports/phase-14-report.md`.
+- **Phase 15** (hardening pass, no new feature): `npm audit` clean on
+  backend, frontend's 12 findings triaged and accepted as upstream-blocked
+  (nested in `next`'s own `postcss`/`sharp`, no non-major fix exists); a
+  second rate limiter (`writeRateLimiter`) extended to checkout, refunds,
+  reviews, product reports, and change-password; bounded
+  password-adjacent fields that feed `bcrypt.compare`; a shared
+  `httpUrlSchema` closing a `javascript:`/`data:`-URI gap in every
+  image/logo/banner field; a real information-disclosure fix in
+  `errorHandler.ts` (production no longer echoes raw internal error
+  messages); systematic (not sampled) confirmation that every ownership
+  check and every admin/seller route gate is correctly in place; baseline
+  security headers added to the frontend (`next.config.ts`). 10 new
+  automated backend tests (208 total). Full details in
+  `.ai/reports/phase-15-report.md`.
+- **Phase 16** (polish pass, no new feature): fixed the one
+  un-breakpointed responsive grid found app-wide (seller analytics' stat
+  cards, now stacking to one column below `sm`); added accessible names
+  (`aria-label`) to 7 previously placeholder-only inputs/buttons across 6
+  files (site search, cart/product quantity inputs, admin filters/search,
+  product-form image URL fields), plus `aria-current` on the product
+  page's thumbnail carousel; added `loading="lazy"` to every grid/
+  thumbnail/list-item image across 5 files, deliberately leaving each
+  page's LCP-candidate hero image at eager loading; confirmed
+  loading/error states already comprehensive (192 `isLoading`/
+  `isPending`/`isError` occurrences across 42 route files, all from
+  Phases 0-14) and TanStack Query caching defaults and bundle size (1.3MB
+  JS, 6 runtime dependencies) already reasonable — both audited and left
+  unchanged rather than modified for their own sake. Full details in
+  `.ai/reports/phase-16-report.md`.
+- **Phase 17** (SEO + production readiness, no new user-facing feature):
+  `/products/[slug]` and `/stores/[slug]` split into Server Component
+  wrappers (`generateMetadata` + `schema.org` JSON-LD via the new
+  `frontend/src/lib/jsonLd.ts` helper) around their existing client
+  components, unchanged; root layout gained `metadataBase`/title
+  template/Open Graph/Twitter defaults; `frontend/src/app/sitemap.ts` and
+  `robots.ts` (new); `noindex` meta tags on the three private dashboard
+  layouts; `backend/src/config/env.ts`'s `DATABASE_URL` now fails fast
+  like every other required env var; `/api/v1/health` now verifies real
+  database connectivity (`503` if unreachable, was an unconditional
+  `200`); `poweredByHeader: false` added to `next.config.ts`. One new
+  backend test (`health.test.ts`, 209 total). Full details in
+  `.ai/reports/phase-17-report.md`, including a real bug found and fixed
+  via this phase's own live-browser verification (a title-template
+  inheritance gap on `/products/[slug]`) and a real robustness fix (the
+  sitemap generator no longer crashes the production build if the
+  backend is briefly unreachable).
 
 ## What Should Not Be Implemented Yet
 
 - Real payment provider integration (Paystack or otherwise) — the
   simulated gateway (Phase 7) stands in until real credentials are
   provided
-- Refunds (Phase 13) — the `Refund` model exists from Phase 1 but nothing
-  reads/writes it yet; a paid order's only self-service action is viewing
-  it, not cancelling
+- Partial-item or custom-amount refunds, automated refund
+  rules/policies, and stock restocking on refund — Phase 13 is
+  whole-SellerOrder-at-full-total, manual-only, money-only
 - Review editing/deletion, and seller responses to reviews — Overview §23
   describes one-time creation only; both are unrequested scope beyond it
-- The seller dashboard's Dashboard/Analytics tabs (placeholders — Phase 11
-  fills them in; Products/Orders/Reviews/Profile are now all real) and the
-  Admin Dashboard Polish phase's overview/audit-log/user-management
-  screens (Phase 14)
-- Notifications UI (Phase 12) — the `Notification` model exists from
-  Phase 1
-- Product view tracking/analytics (`ProductView` writes) — the model has
-  existed since Phase 1; recording views is a Phase 11 (Analytics) concern
+- Payouts, and date-range filtering on analytics — both explicitly future
+  scope/unrequested per Overview §26; analytics figures are all-time
+- Bulk admin user actions and general user-profile editing from the admin
+  side — Phase 14 is status management (suspend/reactivate) only
+- A frontend Content-Security-Policy — Phase 15 deliberately left this out
+  pending a dedicated per-page verification pass; the other four security
+  headers are live, this one specifically is not
+- Fixing the frontend's nested `postcss`/`sharp` `npm audit` findings
+  directly (downgrading `next` is not a real fix) — blocked on upstream;
+  see `.ai/reports/phase-15-report.md`
+- Two-factor auth, CAPTCHA, IP-reputation blocking — not requested by
+  Overview.md/roadmap; the two rate limiters are this project's V1 ceiling
+- `next/image` adoption and a UI component library — Phase 16 confirmed
+  the hand-built Tailwind + manual `loading="lazy"` approach is already
+  lean (1.3MB JS, 6 runtime deps); `next/image` also needs the
+  Cloudinary/image-loader decision this project hasn't made yet
+- Error-tracking/APM integration (Sentry or similar) — needs real
+  credentials/a chosen provider, same precedent as Cloudinary/a real
+  payment provider/a real email provider (Phase 17)
+- Process-level crash handlers (`uncaughtException`/`unhandledRejection`)
+  — the correct model is "crash, let a supervisor restart," which
+  Phase 18's deployment setup should provide (Phase 17)
+- Splitting the sitemap via Next's `generateSitemaps()` — only worth it
+  once the product catalog is large enough that one sitemap response is
+  slow to generate, which it isn't at this project's scale (Phase 17)
+- Every feature phase (0-14) plus Phases 15-17's hardening/polish/
+  readiness passes are complete. What remains is Phase 18: production
+  deployment of frontend, backend, database, and Cloudinary/payment
+  provider configuration
+- Email/push notification delivery, and real-time (websocket/SSE)
+  delivery — Phase 12 is explicitly in-app-only, polling-based
 - Cloudinary image upload — store/seller-application logo/banner and product
   images/digital files are plain URL/reference text inputs for now, not real
   uploads; digital "downloads" return a file reference, not an actual file

@@ -1,70 +1,79 @@
-"use client";
+import type { Metadata } from "next";
+import { env } from "@/config/env";
+import { jsonLdScriptProps } from "@/lib/jsonLd";
+import type { PublicStore } from "@/types/product";
+import { StoreDetailClient } from "./StoreDetailClient";
 
-import { use } from "react";
-import { ProductCard } from "@/components/marketplace/ProductCard";
-import { FormMessage } from "@/components/ui/FormMessage";
-import { useMarketplaceProducts, useMarketplaceStore } from "@/features/marketplace/hooks";
-import { getErrorMessage } from "@/lib/api/getErrorMessage";
-
-export default function StoreDetailPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = use(params);
-  const { data: store, isLoading, isError, error } = useMarketplaceStore(slug);
-  const { data: products } = useMarketplaceProducts({ storeSlug: slug, limit: 24 });
-
-  if (isLoading) return <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-foreground/60">Loading…</div>;
-  if (isError || !store) {
-    return (
-      <div className="mx-auto max-w-6xl px-4 py-8">
-        <FormMessage type="error">{getErrorMessage(error) || "Store not found."}</FormMessage>
-      </div>
-    );
+// See products/[slug]/page.tsx for why this is a plain server-side fetch
+// rather than the client apiClient.
+async function fetchStore(slug: string): Promise<PublicStore | null> {
+  try {
+    const res = await fetch(`${env.apiUrl}/api/v1/marketplace/stores/${encodeURIComponent(slug)}`, {
+      next: { revalidate: 300 },
+    });
+    if (!res.ok) return null;
+    const json = (await res.json()) as { success: boolean; data?: { store: PublicStore } };
+    return json.success && json.data ? json.data.store : null;
+  } catch {
+    return null;
   }
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const store = await fetchStore(slug);
+  if (!store) return { title: "Store Not Found" };
+
+  const description = store.description.slice(0, 160);
+
+  return {
+    title: store.name,
+    description,
+    alternates: { canonical: `/stores/${store.slug}` },
+    openGraph: {
+      title: store.name,
+      description,
+      type: "website",
+      url: `/stores/${store.slug}`,
+      images: store.logoUrl ? [{ url: store.logoUrl }] : undefined,
+    },
+    twitter: {
+      card: "summary",
+      title: store.name,
+      description,
+      images: store.logoUrl ? [store.logoUrl] : undefined,
+    },
+  };
+}
+
+export default async function StoreDetailPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const store = await fetchStore(slug);
 
   return (
-    <div className="flex flex-col">
-      {store.bannerUrl && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={store.bannerUrl} alt="" className="h-40 w-full object-cover sm:h-56" />
+    <>
+      {store && (
+        <script
+          {...jsonLdScriptProps({
+            "@context": "https://schema.org",
+            "@type": "Store",
+            name: store.name,
+            description: store.description,
+            image: store.logoUrl ?? undefined,
+            url: `${env.siteUrl}/stores/${store.slug}`,
+            ...(store.rating.averageRating !== null
+              ? {
+                  aggregateRating: {
+                    "@type": "AggregateRating",
+                    ratingValue: store.rating.averageRating,
+                    reviewCount: store.rating.reviewedProductCount,
+                  },
+                }
+              : {}),
+          })}
+        />
       )}
-
-      <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8">
-        <div className="flex items-center gap-4">
-          {store.logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={store.logoUrl} alt={store.name} className="h-16 w-16 rounded-full object-cover" />
-          ) : (
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-black/10 text-lg font-semibold dark:bg-white/10">
-              {store.name.charAt(0)}
-            </div>
-          )}
-          <div>
-            <h1 className="text-xl font-semibold">{store.name}</h1>
-            <p className="text-sm text-foreground/60">
-              {store.businessCategory} · {store.location}
-            </p>
-            {store.rating.averageRating !== null && (
-              <p className="text-sm text-foreground/70">
-                ★ {store.rating.averageRating.toFixed(1)} · {store.rating.reviewedProductCount} product
-                {store.rating.reviewedProductCount === 1 ? "" : "s"} reviewed
-              </p>
-            )}
-          </div>
-        </div>
-
-        <p className="max-w-2xl text-sm text-foreground/70">{store.description}</p>
-
-        <div>
-          <h2 className="mb-4 text-lg font-semibold">Products</h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-            {products?.products.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-          {products?.products.length === 0 && (
-            <p className="text-sm text-foreground/60">This store hasn&apos;t published any products yet.</p>
-          )}
-        </div>
-      </div>
-    </div>
+      <StoreDetailClient slug={slug} />
+    </>
   );
 }

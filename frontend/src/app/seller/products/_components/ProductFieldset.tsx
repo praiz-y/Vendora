@@ -114,6 +114,7 @@ export function ProductFieldset({
         {images.map((image, index) => (
           <div key={index} className="flex gap-2">
             <input
+              aria-label={`Image URL ${index + 1}`}
               className="flex-1 rounded-md border border-black/15 bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black/20 dark:border-white/20 dark:focus:ring-white/30"
               placeholder="https://…"
               value={image.url}

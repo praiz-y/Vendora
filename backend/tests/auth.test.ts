@@ -12,6 +12,52 @@ function extractCookieValue(setCookieHeader: string[] | undefined, name: string)
   return cookie.split(";")[0].split("=")[1];
 }
 
+let cartMergeSeq = 0;
+
+// Guest-cart-merge tests need a real purchasable product — auth.test.ts
+// otherwise has no reason to touch stores/categories/products, so these
+// helpers are scoped to just that one describe block below.
+async function createCartMergeProduct() {
+  const n = (cartMergeSeq += 1);
+  const seller = await prisma.user.create({
+    data: {
+      firstName: "Seller",
+      lastName: `${n}`,
+      username: uniqueUsername("mergeseller"),
+      email: uniqueEmail("mergeseller"),
+      passwordHash: "not-used-in-these-tests",
+    },
+  });
+  const store = await prisma.store.create({
+    data: {
+      sellerId: seller.id,
+      name: `Merge Store ${n}`,
+      slug: `merge-store-${n}`,
+      description: "desc",
+      businessCategory: "General",
+      phone: "+2340000000000",
+      email: seller.email,
+      location: "Lagos",
+      status: "ACTIVE",
+    },
+  });
+  const category = await prisma.category.create({ data: { name: `Merge Category ${n}`, slug: `merge-category-${n}`, status: "ACTIVE" } });
+  return prisma.product.create({
+    data: {
+      storeId: store.id,
+      categoryId: category.id,
+      name: `Merge Product ${n}`,
+      slug: `merge-product-${n}`,
+      description: "A product for cart-merge testing.",
+      type: "PHYSICAL",
+      price: 1000,
+      stockQuantity: 10,
+      shippingType: "FREE",
+      status: "APPROVED",
+    },
+  });
+}
+
 async function registerUser(overrides: Partial<Record<string, string>> = {}) {
   const payload = {
     firstName: "Test",
@@ -159,6 +205,91 @@ describe("POST /api/v1/auth/login", () => {
       .send({ identifier: payload.email, password: payload.password });
     expect(res.status).toBe(403);
     expect(res.body.error.code).toBe("ACCOUNT_SUSPENDED");
+  });
+
+  // Phase 15 hardening: an unbounded password string sent straight into
+  // bcrypt.compare is a real DoS vector — bounded at the validation layer
+  // before it ever reaches that call.
+  it("rejects an oversized password before it ever reaches bcrypt", async () => {
+    const { payload } = await registerUser();
+    const res = await request(app)
+      .post("/api/v1/auth/login")
+      .send({ identifier: payload.email, password: "a".repeat(10_000) });
+    expect(res.status).toBe(422);
+  });
+});
+
+// Overhaul Phase 3: a guest cart built anonymously must fold into the
+// account's own cart at register/login, combining quantities on a
+// duplicate product rather than either side silently losing items.
+describe("Guest cart merge on register/login", () => {
+  it("merges a guest cart into the new account on register, and clears the guest cookie", async () => {
+    const agent = request.agent(app);
+    const product = await createCartMergeProduct();
+
+    const guestAdd = await agent.post("/api/v1/cart/items").send({ productId: product.id, quantity: 2 });
+    expect(guestAdd.status).toBe(201);
+    const guestToken = extractCookieValue(guestAdd.headers["set-cookie"] as unknown as string[], "vendora_guest_cart");
+
+    const registerRes = await agent.post("/api/v1/auth/register").send({
+      firstName: "Merge",
+      lastName: "OnRegister",
+      username: uniqueUsername("mergereg"),
+      email: uniqueEmail("mergereg"),
+      password: "Password123",
+    });
+    expect(registerRes.status).toBe(200);
+
+    const setCookie = registerRes.headers["set-cookie"] as unknown as string[];
+    const cleared = setCookie.find((c) => c.startsWith("vendora_guest_cart="));
+    expect(cleared).toBeDefined();
+    expect(cleared).toMatch(/vendora_guest_cart=;/);
+
+    const cartRes = await agent.get("/api/v1/cart").set("Authorization", `Bearer ${registerRes.body.data.accessToken}`);
+    expect(cartRes.body.data.cart.items).toHaveLength(1);
+    expect(cartRes.body.data.cart.items[0].quantity).toBe(2);
+
+    const orphanedGuestCart = await prisma.cart.findUnique({ where: { guestToken } });
+    expect(orphanedGuestCart).toBeNull();
+  });
+
+  it("merges a guest cart into an existing account on login, combining quantities on a shared product", async () => {
+    const { payload } = await registerUser();
+    const product = await createCartMergeProduct();
+
+    // The new account already has this product in its own cart before the
+    // guest cart (built in a separate, unauthenticated "session") ever
+    // logs in — the merge must combine quantities, not just overwrite.
+    const loginForSetup = await request(app)
+      .post("/api/v1/auth/login")
+      .send({ identifier: payload.email, password: payload.password });
+    await request(app)
+      .post("/api/v1/cart/items")
+      .set("Authorization", `Bearer ${loginForSetup.body.data.accessToken}`)
+      .send({ productId: product.id, quantity: 1 });
+
+    const agent = request.agent(app);
+    await agent.post("/api/v1/cart/items").send({ productId: product.id, quantity: 3 });
+
+    const loginRes = await agent.post("/api/v1/auth/login").send({ identifier: payload.email, password: payload.password });
+    expect(loginRes.status).toBe(200);
+
+    const cartRes = await agent.get("/api/v1/cart").set("Authorization", `Bearer ${loginRes.body.data.accessToken}`);
+    expect(cartRes.body.data.cart.items).toHaveLength(1);
+    expect(cartRes.body.data.cart.items[0].quantity).toBe(4);
+  });
+
+  it("is a no-op when no guest cart cookie is presented", async () => {
+    const res = await request(app).post("/api/v1/auth/register").send({
+      firstName: "No",
+      lastName: "Guest",
+      username: uniqueUsername("noguest"),
+      email: uniqueEmail("noguest"),
+      password: "Password123",
+    });
+    expect(res.status).toBe(200);
+    const cart = await prisma.cart.findUnique({ where: { userId: res.body.data.user.id } });
+    expect(cart).not.toBeNull();
   });
 });
 

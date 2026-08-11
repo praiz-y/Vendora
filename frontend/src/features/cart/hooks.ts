@@ -12,7 +12,11 @@ export function useCart() {
     queryKey: CART_KEY,
     queryFn: () => cartApi.get(),
     select: (data) => data.cart,
-    enabled: status === "authenticated",
+    // Overhaul Phase 3: the cart endpoint is guest-accessible now — only
+    // withhold the request while auth status itself is still resolving
+    // (the very first render, before AuthProvider's bootstrap refresh
+    // settles either way), not just for logged-out visitors.
+    enabled: status !== "loading",
   });
 }
 

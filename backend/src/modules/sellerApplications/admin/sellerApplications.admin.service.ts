@@ -2,6 +2,7 @@ import type { SellerApplication, SellerApplicationStatus, Store } from "@prisma/
 import { prisma } from "../../../config/prisma";
 import { ApiError } from "../../../utils/ApiError";
 import { recordAuditLog } from "../../../utils/auditLog";
+import { notify } from "../../../utils/notifications";
 import { buildPaginationMeta, toSkipTake, type PaginationMeta, type PaginationParams } from "../../../utils/pagination";
 import { generateUniqueStoreSlug } from "../../stores/stores.service";
 
@@ -96,6 +97,15 @@ export async function approveApplication(
       metadata: { storeId: store.id },
     });
 
+    await notify(tx, {
+      userId: application.userId,
+      type: "SELLER_APPLICATION_APPROVED",
+      title: "Your seller application was approved",
+      message: `Congratulations — "${store.name}" is now live on Vendora.`,
+      relatedEntityType: "Store",
+      relatedEntityId: store.id,
+    });
+
     return { application: updatedApplication, store };
   });
 }
@@ -123,6 +133,15 @@ export async function rejectApplication(
       entityType: "SellerApplication",
       entityId: applicationId,
       metadata: { reason },
+    });
+
+    await notify(tx, {
+      userId: application.userId,
+      type: "SELLER_APPLICATION_REJECTED",
+      title: "Your seller application was rejected",
+      message: reason,
+      relatedEntityType: "SellerApplication",
+      relatedEntityId: applicationId,
     });
 
     return updated;

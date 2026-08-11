@@ -29,3 +29,28 @@ export function clearRefreshCookie(res: Response): void {
     path: REFRESH_COOKIE_PATH,
   });
 }
+
+// Scoped to /api/v1 (not "/") — unlike the refresh cookie, nothing outside
+// this backend (e.g. the Next.js proxy) ever needs to see this one; it just
+// needs to reach both the cart routes and the auth routes (login/register
+// read it once, to merge the guest cart, then clear it).
+const GUEST_CART_COOKIE_PATH = "/api/v1";
+
+export function setGuestCartCookie(res: Response, token: string): void {
+  res.cookie(env.guestCart.cookieName, token, {
+    httpOnly: true,
+    secure: env.cookie.secure,
+    sameSite: env.cookie.sameSite,
+    path: GUEST_CART_COOKIE_PATH,
+    maxAge: env.guestCart.ttlDays * 24 * 60 * 60 * 1000,
+  });
+}
+
+export function clearGuestCartCookie(res: Response): void {
+  res.clearCookie(env.guestCart.cookieName, {
+    httpOnly: true,
+    secure: env.cookie.secure,
+    sameSite: env.cookie.sameSite,
+    path: GUEST_CART_COOKIE_PATH,
+  });
+}

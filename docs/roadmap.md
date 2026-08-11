@@ -58,14 +58,14 @@ Overview.md section 42 exactly.
 | 8 | Orders + Fulfillment | ✅ Complete |
 | 9 | Digital Products | ✅ Complete |
 | 10 | Reviews + Reports | ✅ Complete |
-| 11 | Seller Dashboard + Analytics | 🔜 Next |
-| 12 | Notifications | Planned |
-| 13 | Refunds | Planned |
-| 14 | Admin Dashboard Polish | Planned |
-| 15 | Security + Testing | Planned |
-| 16 | UI/UX + Performance | Planned |
-| 17 | SEO + Production Readiness | Planned |
-| 18 | Deployment + Launch | Planned |
+| 11 | Seller Dashboard + Analytics | ✅ Complete |
+| 12 | Notifications | ✅ Complete |
+| 13 | Refunds | ✅ Complete |
+| 14 | Admin Dashboard Polish | ✅ Complete |
+| 15 | Security + Testing | ✅ Complete |
+| 16 | UI/UX + Performance | ✅ Complete |
+| 17 | SEO + Production Readiness | ✅ Complete |
+| 18 | Deployment + Launch | 🔜 Next |
 
 ---
 
@@ -200,7 +200,7 @@ aggregates from its products' reviews.
 **Seller Dashboard**: Reviews tab (fills in Phase 3's placeholder) — view
 reviews associated with the seller's products.
 
-## Phase 11 — Seller Dashboard + Analytics
+## Phase 11 — Seller Dashboard + Analytics ✅
 
 Dashboard tab (overview of seller activity) and Analytics tab (product
 views, sales, revenue) — the two remaining placeholders from Phase 3's
@@ -208,20 +208,20 @@ shell, now buildable because orders (Phase 8), digital sales (Phase 9), and
 reviews (Phase 10) all exist to aggregate over. Payouts explicitly excluded
 (deferred past V1).
 
-## Phase 12 — Notifications
+## Phase 12 — Notifications ✅
 
 Populate and surface the `Notification` model that's existed since Phase 1:
 seller application updates, product approval/rejection, order updates,
 payment status, shipping/delivery updates, refund updates, new reviews.
 In-app first; email/push are future scope.
 
-## Phase 13 — Refunds
+## Phase 13 — Refunds ✅
 
 Buyer refund request → **admin review screen** (reuses the Phase 3 shell,
 third consumer of the pattern) → approve/reject → payment refund. Manual
 workflow per V1 scope; automated refund rules are deferred.
 
-## Phase 14 — Admin Dashboard Polish
+## Phase 14 — Admin Dashboard Polish ✅
 
 Ties together everything built incrementally onto the Phase 3 shell since
 then: an overview/stats landing page, the audit log viewer (`AuditLog` has
@@ -230,18 +230,18 @@ existed since Phase 1; this is its first UI), and user management
 seller approval, product moderation, category management, report review,
 and refund review screens already exist by this point.
 
-## Phase 15 — Security + Testing
+## Phase 15 — Security + Testing ✅
 
 Hardening pass across everything built so far: expanded automated test
 coverage, dependency/security audit, rate-limiting review, input validation
 audit, auth/authorization edge cases.
 
-## Phase 16 — UI/UX + Performance
+## Phase 16 — UI/UX + Performance ✅
 
 Cross-cutting polish: responsive design audit, loading/error states,
 accessibility, image optimization, query/caching performance, bundle size.
 
-## Phase 17 — SEO + Production Readiness
+## Phase 17 — SEO + Production Readiness ✅
 
 Metadata, sitemaps, structured data for product/store pages, production
 environment configuration, logging/monitoring readiness.

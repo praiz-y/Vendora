@@ -2,6 +2,7 @@ import { Prisma, type ProductStatus } from "@prisma/client";
 import { prisma } from "../../../config/prisma";
 import { ApiError } from "../../../utils/ApiError";
 import { recordAuditLog } from "../../../utils/auditLog";
+import { notify } from "../../../utils/notifications";
 import { buildPaginationMeta, toSkipTake, type PaginationMeta, type PaginationParams } from "../../../utils/pagination";
 
 const adminProductInclude = {
@@ -44,7 +45,10 @@ export async function getProductById(id: string) {
 }
 
 async function getProductOrThrow(id: string) {
-  const product = await prisma.product.findUnique({ where: { id } });
+  const product = await prisma.product.findUnique({
+    where: { id },
+    include: { store: { select: { sellerId: true } } },
+  });
   if (!product) throw ApiError.notFound("Product not found.", "PRODUCT_NOT_FOUND");
   return product;
 }
@@ -65,6 +69,14 @@ export async function approveProduct(adminId: string, productId: string) {
       action: "PRODUCT_APPROVED",
       entityType: "Product",
       entityId: productId,
+    });
+    await notify(tx, {
+      userId: product.store.sellerId,
+      type: "PRODUCT_APPROVED",
+      title: "Your product was approved",
+      message: `"${product.name}" is now live on the marketplace.`,
+      relatedEntityType: "Product",
+      relatedEntityId: productId,
     });
   });
 
@@ -88,6 +100,14 @@ export async function rejectProduct(adminId: string, productId: string, reason: 
       entityType: "Product",
       entityId: productId,
       metadata: { reason },
+    });
+    await notify(tx, {
+      userId: product.store.sellerId,
+      type: "PRODUCT_REJECTED",
+      title: "Your product was rejected",
+      message: `"${product.name}" was rejected: ${reason}`,
+      relatedEntityType: "Product",
+      relatedEntityId: productId,
     });
   });
 

@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import request from "supertest";
 import { createApp } from "../src/app";
 import { prisma } from "../src/config/prisma";
+import { signAccessToken } from "../src/services/token.service";
 import { resetDatabase, uniqueEmail, uniqueUsername } from "./helpers";
 
 const app = createApp();
@@ -237,5 +238,53 @@ describe("GET /api/v1/marketplace/stores/:slug", () => {
     const res2 = await request(app).get(`/api/v1/marketplace/stores/${closed.slug}`);
     expect(res1.status).toBe(404);
     expect(res2.status).toBe(404);
+  });
+});
+
+describe("POST /api/v1/marketplace/products/:slug/view", () => {
+  it("records an anonymous view against visitorId, not userId", async () => {
+    const store = await createStore();
+    const category = await createCategory();
+    const product = await createProduct(store.id, category.id);
+
+    const res = await request(app)
+      .post(`/api/v1/marketplace/products/${product.slug}/view`)
+      .send({ visitorId: "anon-visitor-1" });
+    expect(res.status).toBe(200);
+
+    const view = await prisma.productView.findFirstOrThrow({ where: { productId: product.id } });
+    expect(view.userId).toBeNull();
+    expect(view.visitorId).toBe("anon-visitor-1");
+  });
+
+  it("records a logged-in view against userId, ignoring any visitorId sent", async () => {
+    const store = await createStore();
+    const category = await createCategory();
+    const product = await createProduct(store.id, category.id);
+    const buyer = await prisma.user.create({
+      data: {
+        firstName: "Buyer",
+        lastName: "One",
+        username: uniqueUsername("mktbuyer"),
+        email: uniqueEmail("mktbuyer"),
+        passwordHash: "not-used-in-these-tests",
+      },
+    });
+    const token = signAccessToken({ sub: buyer.id, role: "USER" });
+
+    const res = await request(app)
+      .post(`/api/v1/marketplace/products/${product.slug}/view`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ visitorId: "should-be-ignored" });
+    expect(res.status).toBe(200);
+
+    const view = await prisma.productView.findFirstOrThrow({ where: { productId: product.id } });
+    expect(view.userId).toBe(buyer.id);
+    expect(view.visitorId).toBeNull();
+  });
+
+  it("404s an unknown or unapproved product slug", async () => {
+    const res = await request(app).post(`/api/v1/marketplace/products/does-not-exist/view`).send({});
+    expect(res.status).toBe(404);
   });
 });
