@@ -28,6 +28,8 @@ import auditLogsRoutes from "../../modules/auditLogs/auditLogs.routes";
 import adminUsersRoutes from "../../modules/users/admin/users.admin.routes";
 import announcementRoutes from "../../modules/announcement/announcement.routes";
 import adminAnnouncementRoutes from "../../modules/announcement/admin/announcement.admin.routes";
+import heroSlidesRoutes from "../../modules/heroSlides/heroSlides.routes";
+import adminHeroSlidesRoutes from "../../modules/heroSlides/admin/heroSlides.admin.routes";
 
 const router = Router();
 
@@ -60,5 +62,7 @@ router.use("/admin/audit-logs", auditLogsRoutes);
 router.use("/admin/users", adminUsersRoutes);
 router.use("/announcement", announcementRoutes);
 router.use("/admin/announcement", adminAnnouncementRoutes);
+router.use("/hero-slides", heroSlidesRoutes);
+router.use("/admin/hero-slides", adminHeroSlidesRoutes);
 
 export default router;

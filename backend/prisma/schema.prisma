@@ -68,6 +68,7 @@ model User {
   digitalEntitlements DigitalEntitlement[]
   auditLogs           AuditLog[]           @relation("AuditLogActor")
   announcementUpdates Announcement[]       @relation("AnnouncementUpdatedBy")
+  heroSlideUpdates    HeroSlide[]          @relation("HeroSlideUpdatedBy")
 
   @@index([role])
   @@index([status])
@@ -196,6 +197,9 @@ model Store {
   location             String
   businessRegistration String?
   status               StoreStatus @default(ACTIVE)
+  // Overhaul Part 3 (Homepage): admin-curated, opposite of Trending on
+  // purpose — "featured" implies editorial intent, not an algorithm.
+  isFeatured           Boolean     @default(false)
   createdAt            DateTime    @default(now())
   updatedAt            DateTime    @updatedAt
 
@@ -786,4 +790,23 @@ model Announcement {
   updatedById String?
 
   updatedBy User? @relation("AnnouncementUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+}
+
+// A fixed set of exactly 4 rows (position 1-4) — seeded once, never
+// created/deleted via the API, matching Announcement's "fixed shape, not a
+// dynamic list" precedent (just 4 rows instead of 1). A slide is hidden by
+// toggling `enabled`, not by deleting it.
+model HeroSlide {
+  id          String   @id @default(cuid())
+  position    Int      @unique
+  imageUrl    String
+  headline    String
+  text        String
+  ctaLabel    String
+  ctaUrl      String
+  enabled     Boolean  @default(true)
+  updatedAt   DateTime @updatedAt
+  updatedById String?
+
+  updatedBy User? @relation("HeroSlideUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
 }
