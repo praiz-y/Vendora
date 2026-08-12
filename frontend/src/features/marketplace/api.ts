@@ -9,7 +9,7 @@ export interface ListMarketplaceProductsParams {
   type?: ProductType;
   minPrice?: number;
   maxPrice?: number;
-  sort?: "newest" | "price_asc" | "price_desc";
+  sort?: "newest" | "price_asc" | "price_desc" | "rating_desc" | "best_selling";
   page?: number;
   limit?: number;
 }

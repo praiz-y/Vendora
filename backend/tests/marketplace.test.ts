@@ -66,6 +66,75 @@ async function createProduct(
   });
 }
 
+async function createBuyer() {
+  const n = next();
+  return prisma.user.create({
+    data: {
+      firstName: "Buyer",
+      lastName: `${n}`,
+      username: uniqueUsername("mktbuyer"),
+      email: uniqueEmail("mktbuyer"),
+      passwordHash: "not-used-in-these-tests",
+    },
+  });
+}
+
+// Direct-to-DB fixture, bypassing checkout/review-eligibility entirely —
+// those have their own dedicated test coverage; these tests are about the
+// marketplace's own sort/filter logic once qualifying rows already exist.
+async function createDeliveredReview(productId: string, storeId: string, rating: number) {
+  const buyer = await createBuyer();
+  const order = await prisma.order.create({ data: { buyerId: buyer.id, status: "COMPLETED", totalAmount: 0 } });
+  const sellerOrder = await prisma.sellerOrder.create({
+    data: { orderId: order.id, storeId, subtotal: 0, shippingFee: 0, total: 0, status: "DELIVERED" },
+  });
+  const product = await prisma.product.findUniqueOrThrow({ where: { id: productId } });
+  const orderItem = await prisma.orderItem.create({
+    data: {
+      sellerOrderId: sellerOrder.id,
+      productId,
+      productNameSnapshot: product.name,
+      priceSnapshot: product.price,
+      quantity: 1,
+      productTypeSnapshot: "PHYSICAL",
+      storeNameSnapshot: "Store",
+    },
+  });
+  return prisma.review.create({ data: { userId: buyer.id, productId, orderItemId: orderItem.id, rating } });
+}
+
+async function createPaidOrderItem(
+  productId: string,
+  storeId: string,
+  quantity: number,
+  overrides: { status?: "PAID" | "CANCELLED" | "PENDING_PAYMENT"; placedAt?: Date } = {}
+) {
+  const buyer = await createBuyer();
+  const order = await prisma.order.create({
+    data: {
+      buyerId: buyer.id,
+      status: overrides.status ?? "PAID",
+      totalAmount: 0,
+      placedAt: overrides.placedAt ?? new Date(),
+    },
+  });
+  const sellerOrder = await prisma.sellerOrder.create({
+    data: { orderId: order.id, storeId, subtotal: 0, shippingFee: 0, total: 0, status: "PROCESSING" },
+  });
+  const product = await prisma.product.findUniqueOrThrow({ where: { id: productId } });
+  return prisma.orderItem.create({
+    data: {
+      sellerOrderId: sellerOrder.id,
+      productId,
+      productNameSnapshot: product.name,
+      priceSnapshot: product.price,
+      quantity,
+      productTypeSnapshot: "PHYSICAL",
+      storeNameSnapshot: "Store",
+    },
+  });
+}
+
 beforeEach(async () => {
   await resetDatabase();
 });
@@ -172,6 +241,66 @@ describe("GET /api/v1/marketplace/products", () => {
     expect(res.body.data.products).toHaveLength(2);
     expect(res.body.data.meta.total).toBe(3);
     expect(res.body.data.meta.totalPages).toBe(2);
+  });
+
+  // Overhaul Phase 4 (Part 3's Top Rated eligibility rule): rating >= 4.0
+  // AND >= 5 reviews — the review-count floor exists so a single lucky
+  // 5-star review can't outrank a product with hundreds of reviews.
+  describe("sort=rating_desc", () => {
+    it("only includes products meeting the >=4.0-rating AND >=5-review floor, ranked highest first", async () => {
+      const store = await createStore();
+      const category = await createCategory();
+
+      const eligibleHigh = await createProduct(store.id, category.id, { name: "Eligible High" });
+      for (let i = 0; i < 5; i += 1) await createDeliveredReview(eligibleHigh.id, store.id, 5);
+
+      const eligibleLower = await createProduct(store.id, category.id, { name: "Eligible Lower" });
+      for (let i = 0; i < 5; i += 1) await createDeliveredReview(eligibleLower.id, store.id, 4);
+
+      const tooFewReviews = await createProduct(store.id, category.id, { name: "Too Few Reviews" });
+      for (let i = 0; i < 3; i += 1) await createDeliveredReview(tooFewReviews.id, store.id, 5);
+
+      const ratingTooLow = await createProduct(store.id, category.id, { name: "Rating Too Low" });
+      for (let i = 0; i < 6; i += 1) await createDeliveredReview(ratingTooLow.id, store.id, 3);
+
+      const noReviews = await createProduct(store.id, category.id, { name: "No Reviews" });
+      void noReviews;
+
+      const res = await request(app).get("/api/v1/marketplace/products?sort=rating_desc");
+      expect(res.status).toBe(200);
+      expect(res.body.data.products.map((p: { id: string }) => p.id)).toEqual([eligibleHigh.id, eligibleLower.id]);
+      expect(res.body.data.meta.total).toBe(2);
+    });
+  });
+
+  // Shares its "recent paid orders" query with Phase 5's Trending row —
+  // rolling 30-day window, not all-time.
+  describe("sort=best_selling", () => {
+    it("ranks by order volume within the last 30 days, excluding older or unpaid orders", async () => {
+      const store = await createStore();
+      const category = await createCategory();
+
+      const topSeller = await createProduct(store.id, category.id, { name: "Top Seller" });
+      await createPaidOrderItem(topSeller.id, store.id, 10);
+
+      const midSeller = await createProduct(store.id, category.id, { name: "Mid Seller" });
+      await createPaidOrderItem(midSeller.id, store.id, 4);
+
+      const staleSeller = await createProduct(store.id, category.id, { name: "Stale Seller" });
+      const fortyDaysAgo = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000);
+      await createPaidOrderItem(staleSeller.id, store.id, 999, { placedAt: fortyDaysAgo });
+
+      const unpaidSeller = await createProduct(store.id, category.id, { name: "Unpaid Seller" });
+      await createPaidOrderItem(unpaidSeller.id, store.id, 999, { status: "PENDING_PAYMENT" });
+
+      const neverOrdered = await createProduct(store.id, category.id, { name: "Never Ordered" });
+      void neverOrdered;
+
+      const res = await request(app).get("/api/v1/marketplace/products?sort=best_selling");
+      expect(res.status).toBe(200);
+      expect(res.body.data.products.map((p: { id: string }) => p.id)).toEqual([topSeller.id, midSeller.id]);
+      expect(res.body.data.meta.total).toBe(2);
+    });
   });
 });
 

@@ -7,7 +7,7 @@ export const listPublicProductsQuerySchema = z.object({
   type: z.enum(["PHYSICAL", "DIGITAL"]).optional(),
   minPrice: z.coerce.number().min(0).optional(),
   maxPrice: z.coerce.number().min(0).optional(),
-  sort: z.enum(["newest", "price_asc", "price_desc"]).optional(),
+  sort: z.enum(["newest", "price_asc", "price_desc", "rating_desc", "best_selling"]).optional(),
   page: z.coerce.number().int().positive().optional(),
   limit: z.coerce.number().int().positive().optional(),
 });

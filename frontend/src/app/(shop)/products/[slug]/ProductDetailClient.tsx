@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
@@ -15,14 +15,63 @@ import { useAddToWishlist, useRemoveFromWishlist, useWishlist } from "@/features
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
 import { formatNaira } from "@/lib/currency";
 import { useAuthStore } from "@/stores/authStore";
+import { toast } from "@/stores/toastStore";
 import { reportReasonLabels, reportReasons, type ReportReason } from "@/types/productReport";
 
 function RatingSummary({ averageRating, reviewCount }: { averageRating: number | null; reviewCount: number }) {
-  if (averageRating === null) return <p className="text-sm text-foreground/50">No reviews yet</p>;
+  if (averageRating === null) return <p className="text-sm text-light">No reviews yet</p>;
   return (
-    <p className="text-sm text-foreground/70">
+    <p className="text-sm text-muted">
       ★ {averageRating.toFixed(1)} · {reviewCount} review{reviewCount === 1 ? "" : "s"}
     </p>
+  );
+}
+
+interface ImageLightboxProps {
+  images: { id: string; url: string }[];
+  index: number;
+  onIndexChange: (index: number) => void;
+  onClose: () => void;
+  alt: string;
+}
+
+function ImageLightbox({ images, index, onIndexChange, onClose, alt }: ImageLightboxProps) {
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowRight") onIndexChange((index + 1) % images.length);
+      if (e.key === "ArrowLeft") onIndexChange((index - 1 + images.length) % images.length);
+    }
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [index, images.length, onIndexChange, onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-heading/90 p-4">
+      <button aria-label="Close" onClick={onClose} className="absolute right-4 top-4 text-2xl text-white/80 hover:text-white">
+        ✕
+      </button>
+      {images.length > 1 && (
+        <button
+          aria-label="Previous image"
+          onClick={() => onIndexChange((index - 1 + images.length) % images.length)}
+          className="absolute left-4 top-1/2 -translate-y-1/2 text-3xl text-white/80 hover:text-white"
+        >
+          ‹
+        </button>
+      )}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={images[index].url} alt={alt} className="max-h-full max-w-full object-contain" />
+      {images.length > 1 && (
+        <button
+          aria-label="Next image"
+          onClick={() => onIndexChange((index + 1) % images.length)}
+          className="absolute right-4 top-1/2 -translate-y-1/2 text-3xl text-white/80 hover:text-white"
+        >
+          ›
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -40,7 +89,7 @@ function ReportProductForm({ productId, onDone }: { productId: string; onDone: (
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex max-w-sm flex-col gap-3 rounded-md border border-black/10 p-4 dark:border-white/10">
+    <form onSubmit={handleSubmit} className="flex max-w-sm flex-col gap-3 rounded-md border border-border p-4">
       {submitReport.isError && <FormMessage type="error">{getErrorMessage(submitReport.error)}</FormMessage>}
       <Select label="Reason" name="reportReason" value={reason} onChange={(e) => setReason(e.target.value as ReportReason)}>
         {reportReasons.map((r) => (
@@ -54,7 +103,7 @@ function ReportProductForm({ productId, onDone }: { productId: string; onDone: (
         onChange={(e) => setDescription(e.target.value)}
         placeholder="Optional details"
         rows={3}
-        className="rounded-md border border-black/15 bg-transparent px-3 py-2 text-sm dark:border-white/20"
+        className="rounded-md border border-border bg-transparent px-3 py-2 text-sm text-body"
       />
       <Button type="submit" variant="danger" loading={submitReport.isPending} className="self-start">
         Submit report
@@ -71,22 +120,22 @@ function ReviewsSection({ productId }: { productId: string }) {
 
   return (
     <div className="mx-auto max-w-6xl px-4 pb-8">
-      <h2 className="mb-4 text-lg font-semibold">Reviews</h2>
+      <h2 className="mb-4 text-lg font-semibold text-heading">Reviews</h2>
       {data?.summary && <RatingSummary averageRating={data.summary.averageRating} reviewCount={data.summary.reviewCount} />}
       {reviews.length === 0 ? (
-        <p className="mt-3 text-sm text-foreground/50">No reviews yet.</p>
+        <p className="mt-3 text-sm text-light">No reviews yet.</p>
       ) : (
         <ul className="mt-4 flex flex-col gap-4">
           {reviews.map((review) => (
-            <li key={review.id} className="rounded-md border border-black/10 p-4 dark:border-white/10">
+            <li key={review.id} className="rounded-md border border-border p-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">
+                <span className="text-sm font-medium text-heading">
                   {review.user.firstName} {review.user.lastName}
                 </span>
-                <span className="text-sm text-foreground/60">★ {review.rating}</span>
+                <span className="text-sm text-muted">★ {review.rating}</span>
               </div>
-              {review.comment && <p className="mt-2 text-sm text-foreground/70">{review.comment}</p>}
-              <p className="mt-2 text-xs text-foreground/40">{new Date(review.createdAt).toLocaleDateString()}</p>
+              {review.comment && <p className="mt-2 text-sm text-body">{review.comment}</p>}
+              <p className="mt-2 text-xs text-light">{new Date(review.createdAt).toLocaleDateString()}</p>
             </li>
           ))}
         </ul>
@@ -106,11 +155,12 @@ export function ProductDetailClient({ slug }: { slug: string }) {
   const removeFromWishlist = useRemoveFromWishlist();
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
   const [showReportForm, setShowReportForm] = useState(false);
   const [reportSubmitted, setReportSubmitted] = useState(false);
   useRecordProductView(product?.slug);
 
-  if (isLoading) return <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-foreground/60">Loading…</div>;
+  if (isLoading) return <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-muted">Loading…</div>;
   if (isError || !product) {
     return (
       <div className="mx-auto max-w-6xl px-4 py-8">
@@ -136,13 +186,19 @@ export function ProductDetailClient({ slug }: { slug: string }) {
     // Deliberately not gated by requireAuth — guests can add to cart
     // anonymously (Overhaul Phase 3); only Wishlist and Report Product
     // stay login-gated.
-    addToCart.mutate({ productId: product!.id, quantity });
+    addToCart.mutate(
+      { productId: product!.id, quantity },
+      { onSuccess: () => toast.success("Added to cart.") }
+    );
   }
 
   function handleToggleWishlist() {
     requireAuth(() => {
-      if (wishlistItem) removeFromWishlist.mutate(wishlistItem.id);
-      else addToWishlist.mutate(product!.id);
+      if (wishlistItem) {
+        removeFromWishlist.mutate(wishlistItem.id, { onSuccess: () => toast.success("Removed from wishlist.") });
+      } else {
+        addToWishlist.mutate(product!.id, { onSuccess: () => toast.success("Added to wishlist.") });
+      }
     });
   }
 
@@ -152,14 +208,19 @@ export function ProductDetailClient({ slug }: { slug: string }) {
     <>
     <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-8 md:flex-row">
       <div className="flex flex-1 flex-col gap-3">
-        <div className="flex aspect-square items-center justify-center overflow-hidden rounded-md bg-black/5 dark:bg-white/5">
+        <button
+          type="button"
+          onClick={() => images.length > 0 && setLightboxOpen(true)}
+          aria-label="View fullscreen"
+          className="flex aspect-square items-center justify-center overflow-hidden rounded-md bg-surface-alt"
+        >
           {images.length > 0 ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={images[activeImage].url} alt={product.name} className="h-full w-full object-cover" />
+            <img src={images[activeImage].url} alt={product.name} className="h-full w-full cursor-zoom-in object-cover" />
           ) : (
-            <span className="text-sm text-foreground/40">No image available</span>
+            <span className="text-sm text-light">No image available</span>
           )}
-        </div>
+        </button>
         {images.length > 1 && (
           <div className="flex gap-2">
             {images.map((image, index) => (
@@ -168,9 +229,7 @@ export function ProductDetailClient({ slug }: { slug: string }) {
                 onClick={() => setActiveImage(index)}
                 aria-label={`View image ${index + 1} of ${images.length}`}
                 aria-current={index === activeImage}
-                className={`h-16 w-16 overflow-hidden rounded border ${
-                  index === activeImage ? "border-foreground" : "border-black/10 dark:border-white/10"
-                }`}
+                className={`h-16 w-16 overflow-hidden rounded border ${index === activeImage ? "border-primary" : "border-border"}`}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={image.url} alt="" loading="lazy" className="h-full w-full object-cover" />
@@ -180,29 +239,39 @@ export function ProductDetailClient({ slug }: { slug: string }) {
         )}
       </div>
 
+      {lightboxOpen && images.length > 0 && (
+        <ImageLightbox
+          images={images}
+          index={activeImage}
+          onIndexChange={setActiveImage}
+          onClose={() => setLightboxOpen(false)}
+          alt={product.name}
+        />
+      )}
+
       <div className="flex flex-1 flex-col gap-4">
         <div>
-          <Link href={`/stores/${product.store.slug}`} className="text-sm text-foreground/60 hover:underline">
+          <Link href={`/stores/${product.store.slug}`} className="text-sm text-muted hover:underline">
             {product.store.name}
           </Link>
-          <h1 className="mt-1 text-2xl font-semibold">{product.name}</h1>
-          <Link href={`/products?categorySlug=${product.category.slug}`} className="text-sm text-foreground/50 hover:underline">
+          <h1 className="mt-1 text-2xl font-semibold text-heading">{product.name}</h1>
+          <Link href={`/products?categorySlug=${product.category.slug}`} className="text-sm text-light hover:underline">
             {product.category.name}
           </Link>
         </div>
 
-        <p className="text-2xl font-semibold">{formatNaira(product.price)}</p>
+        <p className="text-2xl font-semibold text-heading">{formatNaira(product.price)}</p>
 
         <RatingSummary averageRating={product.rating.averageRating} reviewCount={product.rating.reviewCount} />
 
         {outOfStock && (
-          <span className="w-fit rounded bg-black/70 px-2 py-1 text-xs font-medium text-white">Out of Stock</span>
+          <span className="w-fit rounded bg-heading/70 px-2 py-1 text-xs font-medium text-white">Out of Stock</span>
         )}
 
-        <p className="whitespace-pre-line text-sm text-foreground/70">{product.description}</p>
+        <p className="whitespace-pre-line text-sm text-body">{product.description}</p>
 
         {product.type === "PHYSICAL" && product.shippingType && (
-          <p className="text-sm text-foreground/60">
+          <p className="text-sm text-muted">
             Shipping: {product.shippingType === "FREE" ? "Free" : `${formatNaira(product.shippingFee ?? 0)}`}
           </p>
         )}
@@ -224,7 +293,7 @@ export function ProductDetailClient({ slug }: { slug: string }) {
                   max={product.stockQuantity ?? undefined}
                   value={quantity}
                   onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))}
-                  className="w-20 rounded-md border border-black/15 bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black/20 dark:border-white/20 dark:focus:ring-white/30"
+                  className="w-20 rounded-md border border-border bg-transparent px-3 py-2 text-sm text-body outline-none focus:ring-2 focus:ring-primary/30"
                 />
               )}
               <Button onClick={handleAddToCart} disabled={outOfStock} loading={addToCart.isPending}>
@@ -246,14 +315,14 @@ export function ProductDetailClient({ slug }: { slug: string }) {
 
         <div className="mt-2">
           {reportSubmitted ? (
-            <p className="text-xs text-foreground/50">Report submitted — thanks for letting us know.</p>
+            <p className="text-xs text-light">Report submitted — thanks for letting us know.</p>
           ) : showReportForm ? (
             <ReportProductForm productId={product.id} onDone={() => setReportSubmitted(true)} />
           ) : (
             <button
               type="button"
               onClick={() => requireAuth(() => setShowReportForm(true))}
-              className="text-xs text-foreground/40 underline hover:text-foreground/60"
+              className="text-xs text-light underline hover:text-muted"
             >
               Report this product
             </button>
