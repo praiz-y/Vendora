@@ -1,17 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { TextField } from "@/components/ui/TextField";
 import { PasswordField } from "@/components/ui/PasswordField";
 import { useRegister } from "@/features/auth/hooks";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { resolveRedirectTarget } from "@/lib/redirectTarget";
 
-export default function RegisterPage() {
+function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const register = useRegister();
   const [form, setForm] = useState({
     firstName: "",
@@ -27,7 +29,8 @@ export default function RegisterPage() {
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    register.mutate(form, { onSuccess: () => router.push("/account/profile") });
+    const redirectTo = resolveRedirectTarget(searchParams.get("from"));
+    register.mutate(form, { onSuccess: () => router.push(redirectTo) });
   }
 
   return (
@@ -98,5 +101,13 @@ export default function RegisterPage() {
         </Link>
       </p>
     </main>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={null}>
+      <RegisterForm />
+    </Suspense>
   );
 }

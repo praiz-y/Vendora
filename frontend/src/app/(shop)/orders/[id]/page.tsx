@@ -2,8 +2,10 @@
 
 import { use, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { Badge, type BadgeVariant } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { FormMessage } from "@/components/ui/FormMessage";
+import { StarRatingPicker } from "@/components/ui/StarRatingPicker";
 import { useRetryPayment } from "@/features/checkout/hooks";
 import { useCancelOrder, useMyOrder } from "@/features/orders/hooks";
 import { useCreateReview } from "@/features/reviews/hooks";
@@ -19,6 +21,38 @@ const sellerOrderStatusLabel: Record<SellerOrder["status"], string> = {
   DELIVERED: "Delivered",
   CANCELLED: "Cancelled",
 };
+
+const sellerOrderStatusVariant: Record<SellerOrder["status"], BadgeVariant> = {
+  PENDING: "warning",
+  PROCESSING: "info",
+  SHIPPED: "info",
+  DELIVERED: "success",
+  CANCELLED: "neutral",
+};
+
+const orderStatusVariant: Record<OrderStatus, BadgeVariant> = {
+  PENDING_PAYMENT: "warning",
+  PAID: "info",
+  PARTIALLY_PROCESSING: "info",
+  PARTIALLY_SHIPPED: "info",
+  PARTIALLY_DELIVERED: "info",
+  COMPLETED: "success",
+  CANCELLED: "neutral",
+};
+
+function ItemThumbnail({ item }: { item: OrderItem }) {
+  const image = item.product.images[0];
+  return (
+    <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded bg-surface-alt">
+      {image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={image.url} alt="" loading="lazy" className="h-full w-full object-cover" />
+      ) : (
+        <span className="text-[9px] text-light">No image</span>
+      )}
+    </div>
+  );
+}
 
 // Reviewable only once its SellerOrder has been delivered (Overview §23:
 // "allowed only after the order is delivered/completed") and only once —
@@ -38,13 +72,14 @@ function ReviewItemRow({ item }: { item: OrderItem }) {
 
   if (item.review) {
     return (
-      <li className="flex items-center justify-between text-sm">
-        <span>
+      <li className="flex items-center gap-3 text-sm">
+        <ItemThumbnail item={item} />
+        <span className="flex-1">
           {item.productNameSnapshot} × {item.quantity}
         </span>
         <span className="flex items-center gap-2">
           <span>{lineTotal}</span>
-          <span className="text-xs text-foreground/50">Reviewed</span>
+          <span className="text-xs text-light">Reviewed</span>
         </span>
       </li>
     );
@@ -52,14 +87,15 @@ function ReviewItemRow({ item }: { item: OrderItem }) {
 
   return (
     <li className="flex flex-col gap-2 text-sm">
-      <div className="flex items-center justify-between">
-        <span>
+      <div className="flex items-center gap-3">
+        <ItemThumbnail item={item} />
+        <span className="flex-1">
           {item.productNameSnapshot} × {item.quantity}
         </span>
         <span className="flex items-center gap-2">
           <span>{lineTotal}</span>
           {!open && !createReview.isSuccess && (
-            <button type="button" onClick={() => setOpen(true)} className="text-xs font-medium underline">
+            <button type="button" onClick={() => setOpen(true)} className="text-xs font-medium text-primary underline">
               Leave a review
             </button>
           )}
@@ -67,31 +103,21 @@ function ReviewItemRow({ item }: { item: OrderItem }) {
       </div>
 
       {createReview.isSuccess ? (
-        <p className="text-xs text-foreground/50">Thanks for your review.</p>
+        <p className="text-xs text-light">Thanks for your review.</p>
       ) : (
         open && (
-          <form onSubmit={handleSubmit} className="flex flex-col gap-2 rounded-md border border-black/10 p-3 dark:border-white/10">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-2 rounded-md border border-border p-3">
             {createReview.isError && <FormMessage type="error">{getErrorMessage(createReview.error)}</FormMessage>}
-            <label className="flex items-center gap-2 text-xs">
+            <div className="flex items-center gap-2 text-xs text-body">
               Rating
-              <select
-                value={rating}
-                onChange={(e) => setRating(Number(e.target.value))}
-                className="rounded border border-black/15 bg-transparent px-2 py-1 dark:border-white/20"
-              >
-                {[5, 4, 3, 2, 1].map((n) => (
-                  <option key={n} value={n}>
-                    {n} star{n === 1 ? "" : "s"}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <StarRatingPicker value={rating} onChange={setRating} />
+            </div>
             <textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder="Optional comment"
               rows={2}
-              className="rounded-md border border-black/15 bg-transparent px-2 py-1.5 text-sm dark:border-white/20"
+              className="rounded-md border border-border bg-transparent px-2 py-1.5 text-sm text-body outline-none"
             />
             <Button type="submit" loading={createReview.isPending} className="self-start">
               Submit review
@@ -117,7 +143,7 @@ function RefundSection({ sellerOrder, orderStatus }: { sellerOrder: SellerOrder;
 
   if (latestRefund && latestRefund.status !== "REJECTED") {
     return (
-      <p className="mt-2 text-xs text-foreground/60">
+      <p className="mt-2 text-xs text-muted">
         Refund {latestRefund.status.toLowerCase()} · {formatNaira(latestRefund.amount)}
       </p>
     );
@@ -128,12 +154,12 @@ function RefundSection({ sellerOrder, orderStatus }: { sellerOrder: SellerOrder;
   return (
     <div className="mt-2">
       {latestRefund?.status === "REJECTED" && !open && !requestRefund.isSuccess && (
-        <p className="mb-1 text-xs text-foreground/50">Your previous refund request was rejected.</p>
+        <p className="mb-1 text-xs text-light">Your previous refund request was rejected.</p>
       )}
       {requestRefund.isSuccess ? (
-        <p className="text-xs text-foreground/50">Refund request submitted.</p>
+        <p className="text-xs text-light">Refund request submitted.</p>
       ) : !open ? (
-        <button type="button" onClick={() => setOpen(true)} className="text-xs font-medium underline">
+        <button type="button" onClick={() => setOpen(true)} className="text-xs font-medium text-primary underline">
           Request a refund
         </button>
       ) : (
@@ -142,7 +168,7 @@ function RefundSection({ sellerOrder, orderStatus }: { sellerOrder: SellerOrder;
             e.preventDefault();
             requestRefund.mutate({ sellerOrderId: sellerOrder.id, reason });
           }}
-          className="flex flex-col gap-2 rounded-md border border-black/10 p-3 dark:border-white/10"
+          className="flex flex-col gap-2 rounded-md border border-border p-3"
         >
           {requestRefund.isError && <FormMessage type="error">{getErrorMessage(requestRefund.error)}</FormMessage>}
           <textarea
@@ -152,7 +178,7 @@ function RefundSection({ sellerOrder, orderStatus }: { sellerOrder: SellerOrder;
             rows={2}
             required
             minLength={3}
-            className="rounded-md border border-black/15 bg-transparent px-2 py-1.5 text-sm dark:border-white/20"
+            className="rounded-md border border-border bg-transparent px-2 py-1.5 text-sm text-body outline-none"
           />
           <Button type="submit" variant="danger" loading={requestRefund.isPending} className="self-start">
             Submit request
@@ -165,18 +191,19 @@ function RefundSection({ sellerOrder, orderStatus }: { sellerOrder: SellerOrder;
 
 function SellerOrderCard({ sellerOrder, orderStatus }: { sellerOrder: SellerOrder; orderStatus: OrderStatus }) {
   return (
-    <div className="rounded-md border border-black/10 p-4 dark:border-white/10">
+    <div className="rounded-md border border-border p-4">
       <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-sm font-semibold">{sellerOrder.store.name}</h3>
-        <span className="text-xs font-medium text-foreground/60">{sellerOrderStatusLabel[sellerOrder.status]}</span>
+        <h3 className="text-sm font-semibold text-heading">{sellerOrder.store.name}</h3>
+        <Badge variant={sellerOrderStatusVariant[sellerOrder.status]}>{sellerOrderStatusLabel[sellerOrder.status]}</Badge>
       </div>
       <ul className="flex flex-col gap-2">
         {sellerOrder.items.map((item) =>
           sellerOrder.status === "DELIVERED" ? (
             <ReviewItemRow key={item.id} item={item} />
           ) : (
-            <li key={item.id} className="flex justify-between text-sm">
-              <span>
+            <li key={item.id} className="flex items-center gap-3 text-sm">
+              <ItemThumbnail item={item} />
+              <span className="flex-1">
                 {item.productNameSnapshot} × {item.quantity}
               </span>
               <span>{formatNaira(Number(item.priceSnapshot) * item.quantity)}</span>
@@ -184,11 +211,11 @@ function SellerOrderCard({ sellerOrder, orderStatus }: { sellerOrder: SellerOrde
           )
         )}
       </ul>
-      <div className="mt-2 flex justify-between border-t border-black/10 pt-2 text-sm dark:border-white/10">
-        <span className="text-foreground/60">Shipping</span>
-        <span>{formatNaira(sellerOrder.shippingFee)}</span>
+      <div className="mt-2 flex justify-between border-t border-border pt-2 text-sm">
+        <span className="text-muted">Shipping</span>
+        <span className="text-body">{formatNaira(sellerOrder.shippingFee)}</span>
       </div>
-      <div className="flex justify-between text-sm font-medium">
+      <div className="flex justify-between text-sm font-medium text-heading">
         <span>Seller total</span>
         <span>{formatNaira(sellerOrder.total)}</span>
       </div>
@@ -203,7 +230,7 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const cancelOrder = useCancelOrder();
   const retryPayment = useRetryPayment();
 
-  if (isLoading) return <div className="mx-auto max-w-3xl px-4 py-8 text-sm text-foreground/60">Loading…</div>;
+  if (isLoading) return <div className="mx-auto max-w-3xl px-4 py-8 text-sm text-muted">Loading…</div>;
   if (isError || !order) {
     return (
       <div className="mx-auto max-w-3xl px-4 py-8">
@@ -215,18 +242,19 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-8">
       <div>
-        <Link href="/orders" className="text-sm text-foreground/60 hover:underline">
+        <Link href="/orders" className="text-sm text-muted hover:underline">
           ← Back to orders
         </Link>
-        <h1 className="mt-2 text-xl font-semibold">Order #{order.id.slice(-8)}</h1>
-        <p className="text-sm text-foreground/60">
-          Placed {new Date(order.placedAt).toLocaleString()} · Status: {order.status.replace(/_/g, " ")}
+        <h1 className="mt-2 text-xl font-semibold text-heading">Order #{order.id.slice(-8)}</h1>
+        <p className="flex items-center gap-2 text-sm text-muted">
+          Placed {new Date(order.placedAt).toLocaleString()} ·
+          <Badge variant={orderStatusVariant[order.status]}>{order.status.replace(/_/g, " ")}</Badge>
         </p>
       </div>
 
       {order.status === "PENDING_PAYMENT" && (
-        <div className="flex flex-col gap-3 rounded-md border border-amber-500/30 bg-amber-500/10 p-4">
-          <p className="text-sm">This order is awaiting payment.</p>
+        <div className="flex flex-col gap-3 rounded-md border border-warning/30 bg-badge-warning-bg p-4">
+          <p className="text-sm text-badge-warning-text">This order is awaiting payment.</p>
           {retryPayment.isError && <FormMessage type="error">{getErrorMessage(retryPayment.error)}</FormMessage>}
           <div className="flex gap-3">
             <Button onClick={() => retryPayment.mutate({ orderId: order.id })} loading={retryPayment.isPending}>
@@ -240,8 +268,8 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       )}
 
       {order.shippingAddress && (
-        <div className="rounded-md border border-black/10 p-4 text-sm dark:border-white/10">
-          <h2 className="mb-1 font-semibold text-foreground/70">Shipping to</h2>
+        <div className="rounded-md border border-border p-4 text-sm text-body">
+          <h2 className="mb-1 font-semibold text-heading">Shipping to</h2>
           <p>{order.shippingAddress.fullName}</p>
           <p>
             {order.shippingAddress.addressLine1}, {order.shippingAddress.city}, {order.shippingAddress.state}
@@ -255,9 +283,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
         ))}
       </div>
 
-      <div className="flex items-center justify-between border-t border-black/10 pt-4 dark:border-white/10">
-        <span className="text-sm text-foreground/60">Payment: {order.payment.status}</span>
-        <span className="text-lg font-semibold">{formatNaira(order.totalAmount)}</span>
+      <div className="flex items-center justify-between border-t border-border pt-4">
+        <span className="text-sm text-muted">Payment: {order.payment.status}</span>
+        <span className="text-lg font-semibold text-heading">{formatNaira(order.totalAmount)}</span>
       </div>
     </div>
   );

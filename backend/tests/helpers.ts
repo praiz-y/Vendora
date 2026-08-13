@@ -12,6 +12,7 @@ import { prisma } from "../src/config/prisma";
 // SellerOrder/OrderItem/DigitalEntitlement).
 export async function resetDatabase(): Promise<void> {
   await prisma.announcement.deleteMany();
+  await prisma.heroSlide.deleteMany();
   await prisma.digitalEntitlement.deleteMany();
   await prisma.order.deleteMany();
   await prisma.stockReservation.deleteMany();

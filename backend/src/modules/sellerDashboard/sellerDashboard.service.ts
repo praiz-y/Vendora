@@ -52,6 +52,46 @@ export async function getOverview(storeId: string) {
   };
 }
 
+// Rolling 30-day window — same choice as marketplace.service.ts's Trending/
+// best_selling ranking, for the same reason (not all-time, so a chart never
+// grows without bound; not 7 days, too volatile at this project's scale).
+const REVENUE_TREND_WINDOW_DAYS = 30;
+
+function dateKey(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+// Daily revenue buckets for the Analytics tab's trend chart (Overhaul
+// Phase 9) — every day in the window is present in the result, even ones
+// with zero revenue, so the chart always has a full, evenly-spaced x-axis
+// instead of gaps on quiet days.
+async function getRevenueTrend(storeId: string, days = REVENUE_TREND_WINDOW_DAYS) {
+  const since = new Date();
+  since.setUTCHours(0, 0, 0, 0);
+  since.setUTCDate(since.getUTCDate() - (days - 1));
+
+  const items = await prisma.orderItem.findMany({
+    where: { sellerOrder: { storeId, order: { status: PAID_ORDER_STATUS_FILTER, placedAt: { gte: since } } } },
+    select: { quantity: true, priceSnapshot: true, sellerOrder: { select: { order: { select: { placedAt: true } } } } },
+  });
+
+  const revenueByDay = new Map<string, Prisma.Decimal>();
+  for (const item of items) {
+    const key = dateKey(item.sellerOrder.order.placedAt);
+    const lineTotal = item.priceSnapshot.mul(item.quantity);
+    revenueByDay.set(key, (revenueByDay.get(key) ?? new Prisma.Decimal(0)).add(lineTotal));
+  }
+
+  const trend: { date: string; revenue: Prisma.Decimal }[] = [];
+  for (let i = 0; i < days; i += 1) {
+    const d = new Date(since);
+    d.setUTCDate(d.getUTCDate() + i);
+    const key = dateKey(d);
+    trend.push({ date: key, revenue: revenueByDay.get(key) ?? new Prisma.Decimal(0) });
+  }
+  return trend;
+}
+
 export async function getAnalytics(storeId: string) {
   const products = await prisma.product.findMany({
     where: { storeId },
@@ -60,12 +100,13 @@ export async function getAnalytics(storeId: string) {
   });
   const productIds = products.map((p) => p.id);
 
-  const [viewCounts, items] = await Promise.all([
+  const [viewCounts, items, revenueTrend] = await Promise.all([
     prisma.productView.groupBy({ by: ["productId"], where: { productId: { in: productIds } }, _count: { _all: true } }),
     prisma.orderItem.findMany({
       where: { productId: { in: productIds }, sellerOrder: { order: { status: PAID_ORDER_STATUS_FILTER } } },
       select: { productId: true, quantity: true, priceSnapshot: true },
     }),
+    getRevenueTrend(storeId),
   ]);
 
   const viewsByProduct = new Map(viewCounts.map((v) => [v.productId, v._count._all]));
@@ -102,5 +143,5 @@ export async function getAnalytics(storeId: string) {
     { views: 0, unitsSold: 0, revenue: new Prisma.Decimal(0) }
   );
 
-  return { totals, perProduct };
+  return { totals, perProduct, revenueTrend };
 }

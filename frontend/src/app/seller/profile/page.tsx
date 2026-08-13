@@ -2,6 +2,7 @@
 
 import { useState, type ChangeEvent, type FormEvent } from "react";
 import { Button } from "@/components/ui/Button";
+import { Dropzone } from "@/components/ui/Dropzone";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { TextField } from "@/components/ui/TextField";
 import { Textarea } from "@/components/ui/Textarea";
@@ -61,12 +62,17 @@ function StoreProfileForm({ store }: { store: Store }) {
         <TextField label="Business email" name="email" type="email" required value={form.email ?? ""} onChange={handleChange("email")} />
       </div>
       <TextField label="Location" name="location" required value={form.location ?? ""} onChange={handleChange("location")} />
-      <TextField label="Store logo URL (optional)" name="logoUrl" value={form.logoUrl ?? ""} onChange={handleChange("logoUrl")} />
-      <TextField
-        label="Store banner URL (optional)"
-        name="bannerUrl"
-        value={form.bannerUrl ?? ""}
-        onChange={handleChange("bannerUrl")}
+      <Dropzone
+        label="Store logo"
+        inputName="logoUrl"
+        imageUrl={form.logoUrl ?? ""}
+        onUrlChange={(url) => setForm((f) => ({ ...f, logoUrl: url }))}
+      />
+      <Dropzone
+        label="Store banner"
+        inputName="bannerUrl"
+        imageUrl={form.bannerUrl ?? ""}
+        onUrlChange={(url) => setForm((f) => ({ ...f, bannerUrl: url }))}
       />
       <TextField
         label="Business registration (optional)"
@@ -91,8 +97,8 @@ export default function SellerProfilePage() {
 
   return (
     <div className="flex flex-col gap-6 py-6">
-      <h2 className="text-lg font-semibold">Store Profile</h2>
-      {isLoading && <p className="text-sm text-foreground/60">Loading…</p>}
+      <h2 className="text-lg font-semibold text-heading">Store Profile</h2>
+      {isLoading && <p className="text-sm text-muted">Loading…</p>}
       {isError && <FormMessage type="error">{getErrorMessage(error)}</FormMessage>}
       {store && <StoreProfileForm store={store} />}
     </div>

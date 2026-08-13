@@ -253,6 +253,14 @@ describe("GET /api/v1/reviews/me/store", () => {
     expect(res.status).toBe(200);
     expect(res.body.data.reviews).toHaveLength(1);
     expect(res.body.data.reviews[0].product.id).toBe(productA.id);
+
+    // Overhaul Phase 9: summary is computed across the whole matching set
+    // (this store's own reviews only), not just the current page.
+    expect(res.body.data.summary).toEqual({
+      averageRating: 5,
+      reviewCount: 1,
+      distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 1 },
+    });
   });
 });
 

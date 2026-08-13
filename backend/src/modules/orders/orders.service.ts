@@ -11,7 +11,16 @@ export const orderInclude = {
       store: { select: { id: true, name: true, slug: true } },
       // `review` lets the buyer UI show "leave a review" only for items
       // that don't have one yet, without a separate lookup per item.
-      items: { include: { review: { select: { id: true } } } },
+      // `product.images` (Overhaul Phase 8) gives order items a real
+      // thumbnail instead of plain text — pulled from the live Product,
+      // not a snapshot, since images aren't captured at order time the way
+      // name/price are.
+      items: {
+        include: {
+          review: { select: { id: true } },
+          product: { select: { images: { where: { isPrimary: true }, take: 1, select: { url: true } } } },
+        },
+      },
       // Most-recent refund only — a rejected request doesn't block a new
       // one (Phase 13), so there can be more than one row, but the UI only
       // ever needs to know the latest state.

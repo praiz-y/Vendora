@@ -2,6 +2,7 @@
 
 import type { ChangeEvent } from "react";
 import { Button } from "@/components/ui/Button";
+import { Dropzone } from "@/components/ui/Dropzone";
 import { Select } from "@/components/ui/Select";
 import { TextField } from "@/components/ui/TextField";
 import { Textarea } from "@/components/ui/Textarea";
@@ -106,21 +107,16 @@ export function ProductFieldset({
         </>
       )}
 
-      <div className="flex flex-col gap-2">
-        <span className="text-sm font-medium text-foreground">Images (optional)</span>
-        <p className="text-xs text-foreground/50">
-          No image upload integration yet — paste a direct image URL for each.
-        </p>
+      <div className="flex flex-col gap-3">
+        <span className="text-sm font-medium text-heading">Images (optional)</span>
         {images.map((image, index) => (
-          <div key={index} className="flex gap-2">
-            <input
-              aria-label={`Image URL ${index + 1}`}
-              className="flex-1 rounded-md border border-black/15 bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black/20 dark:border-white/20 dark:focus:ring-white/30"
-              placeholder="https://…"
-              value={image.url}
-              onChange={(e) => updateImageUrl(index, e.target.value)}
+          <div key={index} className="flex flex-col gap-2 rounded-md border border-border p-3">
+            <Dropzone
+              label={`Image ${index + 1}`}
+              imageUrl={image.url}
+              onUrlChange={(url) => updateImageUrl(index, url)}
             />
-            <Button type="button" variant="secondary" onClick={() => removeImage(index)}>
+            <Button type="button" variant="secondary" className="self-start" onClick={() => removeImage(index)}>
               Remove
             </Button>
           </div>

@@ -29,6 +29,9 @@ export interface OrderItem {
   // buyer has already left a review for it — null means still reviewable
   // (once delivered) rather than "not delivered yet".
   review: { id: string } | null;
+  // Pulled from the live Product, not a snapshot (Overhaul Phase 8) — a
+  // product's images can change after the order was placed.
+  product: { images: { url: string }[] };
 }
 
 export interface SellerOrder {

@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { Badge, type BadgeVariant } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { useMyProducts } from "@/features/products/hooks";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
-import type { ProductStatus } from "@/types/product";
+import type { Product, ProductStatus } from "@/types/product";
 
 const statusTabs: { label: string; value: ProductStatus | undefined }[] = [
   { label: "All", value: undefined },
@@ -17,13 +18,48 @@ const statusTabs: { label: string; value: ProductStatus | undefined }[] = [
   { label: "Archived", value: "ARCHIVED" },
 ];
 
-const statusBadgeClasses: Record<ProductStatus, string> = {
-  DRAFT: "bg-black/10 text-foreground/70 dark:bg-white/10",
-  PENDING_REVIEW: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  APPROVED: "bg-green-500/10 text-green-700 dark:text-green-400",
-  REJECTED: "bg-red-500/10 text-red-600 dark:text-red-400",
-  ARCHIVED: "bg-black/10 text-foreground/50 dark:bg-white/10",
+const statusBadgeVariant: Record<ProductStatus, BadgeVariant> = {
+  DRAFT: "neutral",
+  PENDING_REVIEW: "warning",
+  APPROVED: "success",
+  REJECTED: "error",
+  ARCHIVED: "neutral",
 };
+
+// Not tied to any backend threshold — a simple, low-cost signal for the
+// seller to notice a product about to sell out, not a formal inventory
+// system.
+const LOW_STOCK_THRESHOLD = 5;
+
+function StockLabel({ product }: { product: Product }) {
+  if (product.type !== "PHYSICAL" || product.stockQuantity === null) return null;
+
+  const isOut = product.stockQuantity === 0;
+  const isLow = !isOut && product.stockQuantity <= LOW_STOCK_THRESHOLD;
+
+  return (
+    <span className={isOut ? "text-error" : isLow ? "text-warning" : "text-muted"}>
+      {" "}
+      · Stock: {product.stockQuantity}
+      {isOut && " (Out of stock)"}
+      {isLow && " (Low stock)"}
+    </span>
+  );
+}
+
+function ProductThumbnail({ product }: { product: Product }) {
+  const image = product.images.find((img) => img.isPrimary) ?? product.images[0];
+  return (
+    <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded bg-surface-alt">
+      {image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={image.url} alt="" loading="lazy" className="h-full w-full object-cover" />
+      ) : (
+        <span className="text-[9px] text-light">No image</span>
+      )}
+    </div>
+  );
+}
 
 export default function SellerProductsPage() {
   const [status, setStatus] = useState<ProductStatus | undefined>(undefined);
@@ -33,8 +69,8 @@ export default function SellerProductsPage() {
     <div className="flex flex-col gap-6 py-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold">Products</h2>
-          <p className="mt-1 text-sm text-foreground/60">Manage your product listings.</p>
+          <h2 className="text-lg font-semibold text-heading">Products</h2>
+          <p className="mt-1 text-sm text-muted">Manage your product listings.</p>
         </div>
         <Link href="/seller/products/new">
           <Button>New Product</Button>
@@ -47,9 +83,7 @@ export default function SellerProductsPage() {
             key={tab.label}
             onClick={() => setStatus(tab.value)}
             className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-              status === tab.value
-                ? "bg-foreground text-background"
-                : "border border-black/15 text-foreground/70 hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
+              status === tab.value ? "bg-primary text-white" : "border border-border text-body hover:bg-surface-alt"
             }`}
           >
             {tab.label}
@@ -57,7 +91,7 @@ export default function SellerProductsPage() {
         ))}
       </div>
 
-      {isLoading && <p className="text-sm text-foreground/60">Loading…</p>}
+      {isLoading && <p className="text-sm text-muted">Loading…</p>}
       {isError && <FormMessage type="error">{getErrorMessage(error)}</FormMessage>}
 
       <div className="flex flex-col gap-3">
@@ -65,20 +99,20 @@ export default function SellerProductsPage() {
           <Link
             key={product.id}
             href={`/seller/products/${product.id}`}
-            className="flex items-center justify-between rounded-md border border-black/10 p-4 hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
+            className="flex items-center gap-4 rounded-md border border-border p-4 hover:bg-surface-alt"
           >
-            <div>
-              <p className="text-sm font-medium">{product.name}</p>
-              <p className="text-sm text-foreground/60">
+            <ProductThumbnail product={product} />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-heading">{product.name}</p>
+              <p className="text-sm text-muted">
                 {product.type === "PHYSICAL" ? "Physical" : "Digital"} · ₦{product.price} · {product.category.name}
+                <StockLabel product={product} />
               </p>
             </div>
-            <span className={`rounded px-2 py-1 text-xs font-medium ${statusBadgeClasses[product.status]}`}>
-              {product.status.replace("_", " ")}
-            </span>
+            <Badge variant={statusBadgeVariant[product.status]}>{product.status.replace("_", " ")}</Badge>
           </Link>
         ))}
-        {data?.products.length === 0 && <p className="text-sm text-foreground/60">No products in this category yet.</p>}
+        {data?.products.length === 0 && <p className="text-sm text-muted">No products in this category yet.</p>}
       </div>
     </div>
   );

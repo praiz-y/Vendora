@@ -65,10 +65,10 @@ export default function ResetPasswordPage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-6 px-4 py-12">
       <div>
-        <h1 className="text-xl font-semibold">Set a new password</h1>
+        <h1 className="text-xl font-semibold text-heading">Set a new password</h1>
       </div>
 
-      <Suspense fallback={<p className="text-sm text-foreground/60">Loading…</p>}>
+      <Suspense fallback={<p className="text-sm text-muted">Loading…</p>}>
         <ResetPasswordForm />
       </Suspense>
     </main>

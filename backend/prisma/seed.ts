@@ -15,6 +15,7 @@ async function resetData() {
   // keep this script idempotent.
   await prisma.auditLog.deleteMany();
   await prisma.announcement.deleteMany();
+  await prisma.heroSlide.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.productReport.deleteMany();
   await prisma.review.deleteMany();
@@ -131,6 +132,9 @@ async function main() {
       phone: sellerOneApplication.phone,
       email: sellerOneApplication.email,
       location: sellerOneApplication.location,
+      // Overhaul Part 3 (Homepage): gives the Featured Stores row something
+      // to show in dev — no admin screen exists yet to toggle this (Phase 11).
+      isFeatured: true,
     },
   });
 
@@ -159,6 +163,7 @@ async function main() {
       phone: sellerTwoApplication.phone,
       email: sellerTwoApplication.email,
       location: sellerTwoApplication.location,
+      isFeatured: true,
     },
   });
 
@@ -589,6 +594,57 @@ async function main() {
       enabled: true,
       updatedById: admin.id,
     },
+  });
+
+  // --- Hero slides (Overhaul Phase 5) ----------------------------------------
+
+  // Placeholder content — no admin screen exists yet to edit these (Phase
+  // 11), so the seed is what gives the homepage carousel something to show
+  // during development. Deliberately not claiming "secure payments" (no
+  // provider finalized yet, per Part 3's Why-Shop-on-Vendora note).
+  await prisma.heroSlide.createMany({
+    data: [
+      {
+        position: 1,
+        imageUrl: "https://placehold.co/1600x600/EB4600/FFFFEB?text=Vendora",
+        headline: "Shop independent sellers, all in one place",
+        text: "Discover handmade goods, electronics, and digital products from sellers across Vendora.",
+        ctaLabel: "Browse products",
+        ctaUrl: "/products",
+        enabled: true,
+        updatedById: admin.id,
+      },
+      {
+        position: 2,
+        imageUrl: "https://placehold.co/1600x600/A2C2BE/1D1D1D?text=Electronics",
+        headline: "Top-rated electronics",
+        text: "From earbuds to smart watches — browse Vendora's highest-rated electronics.",
+        ctaLabel: "Shop Electronics",
+        ctaUrl: "/products?categorySlug=electronics",
+        enabled: true,
+        updatedById: admin.id,
+      },
+      {
+        position: 3,
+        imageUrl: "https://placehold.co/1600x600/1D1D1D/FFFFEB?text=Digital+Downloads",
+        headline: "Instant digital downloads",
+        text: "E-books, printables, and more — delivered straight to your library after checkout.",
+        ctaLabel: "Explore digital products",
+        ctaUrl: "/products?type=DIGITAL",
+        enabled: true,
+        updatedById: admin.id,
+      },
+      {
+        position: 4,
+        imageUrl: "https://placehold.co/1600x600/FFF0E9/EB4600?text=Sell+on+Vendora",
+        headline: "Open your own store",
+        text: "Every seller application and product listing is reviewed before going live — join a vetted marketplace.",
+        ctaLabel: "Become a seller",
+        ctaUrl: "/account/selling",
+        enabled: true,
+        updatedById: admin.id,
+      },
+    ],
   });
 
   console.log("Seed complete.");

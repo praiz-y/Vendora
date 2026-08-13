@@ -1,26 +1,14 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { SellerMobileNav } from "@/components/seller/SellerMobileNav";
+import { SellerSidebar } from "@/components/seller/SellerSidebar";
+import { SellerTopBar } from "@/components/seller/SellerTopBar";
 import { useRequireActiveSeller } from "@/features/auth/useRequireActiveSeller";
 import { useMyStore } from "@/features/stores/hooks";
-
-// Nav mirrors the seller-dashboard tabs from docs/roadmap.md Phase 3 — every
-// tab is now real, filled in incrementally through Phases 4/8/10/11.
-const navItems = [
-  { href: "/seller", label: "Dashboard" },
-  { href: "/seller/products", label: "Products" },
-  { href: "/seller/orders", label: "Orders" },
-  { href: "/seller/analytics", label: "Analytics" },
-  { href: "/seller/reviews", label: "Reviews" },
-  { href: "/seller/profile", label: "Profile" },
-];
 
 export default function SellerLayout({ children }: { children: React.ReactNode }) {
   const gate = useRequireActiveSeller();
   const { data: store } = useMyStore();
-  const pathname = usePathname();
 
   if (gate !== "authorized") {
     return (
@@ -35,34 +23,17 @@ export default function SellerLayout({ children }: { children: React.ReactNode }
 
   return (
     <>
-    <meta name="robots" content="noindex, nofollow" />
-    <div className="mx-auto flex min-h-screen max-w-4xl flex-col gap-6 px-4 py-10">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-heading">Seller Dashboard</h1>
-          <p className="text-sm text-muted">{store?.name}</p>
+      <meta name="robots" content="noindex, nofollow" />
+      <div className="flex min-h-screen">
+        <SellerSidebar />
+        <div className="flex flex-1 flex-col">
+          <SellerTopBar store={store} />
+          {/* pb-20 clears SellerMobileNav's fixed bottom bar on mobile —
+              not needed on desktop, where that bar doesn't render. */}
+          <main className="mx-auto w-full max-w-6xl flex-1 px-4 pb-20 pt-2 md:px-8 md:pb-8">{children}</main>
         </div>
-        <NotificationBell />
+        <SellerMobileNav />
       </div>
-
-      <nav className="flex flex-wrap gap-4 border-b border-border">
-        {navItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`border-b-2 px-1 pb-2 text-sm font-medium ${
-              pathname === item.href
-                ? "border-primary text-heading"
-                : "border-transparent text-muted hover:text-heading"
-            }`}
-          >
-            {item.label}
-          </Link>
-        ))}
-      </nav>
-
-      {children}
-    </div>
     </>
   );
 }

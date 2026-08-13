@@ -9,7 +9,7 @@ export function StoreDetailClient({ slug }: { slug: string }) {
   const { data: store, isLoading, isError, error } = useMarketplaceStore(slug);
   const { data: products } = useMarketplaceProducts({ storeSlug: slug, limit: 24 });
 
-  if (isLoading) return <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-foreground/60">Loading…</div>;
+  if (isLoading) return <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-muted">Loading…</div>;
   if (isError || !store) {
     return (
       <div className="mx-auto max-w-6xl px-4 py-8">
@@ -31,17 +31,17 @@ export function StoreDetailClient({ slug }: { slug: string }) {
             // eslint-disable-next-line @next/next/no-img-element
             <img src={store.logoUrl} alt={store.name} className="h-16 w-16 rounded-full object-cover" />
           ) : (
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-black/10 text-lg font-semibold dark:bg-white/10">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-surface-alt text-lg font-semibold text-heading">
               {store.name.charAt(0)}
             </div>
           )}
           <div>
-            <h1 className="text-xl font-semibold">{store.name}</h1>
-            <p className="text-sm text-foreground/60">
+            <h1 className="text-xl font-semibold text-heading">{store.name}</h1>
+            <p className="text-sm text-muted">
               {store.businessCategory} · {store.location}
             </p>
             {store.rating.averageRating !== null && (
-              <p className="text-sm text-foreground/70">
+              <p className="text-sm text-body">
                 ★ {store.rating.averageRating.toFixed(1)} · {store.rating.reviewedProductCount} product
                 {store.rating.reviewedProductCount === 1 ? "" : "s"} reviewed
               </p>
@@ -49,17 +49,20 @@ export function StoreDetailClient({ slug }: { slug: string }) {
           </div>
         </div>
 
-        <p className="max-w-2xl text-sm text-foreground/70">{store.description}</p>
+        <p className="max-w-2xl text-sm text-body">{store.description}</p>
 
         <div>
-          <h2 className="mb-4 text-lg font-semibold">Products</h2>
+          <h2 className="mb-4 text-lg font-semibold text-heading">Products</h2>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
             {products?.products.map((product) => (
-              <ProductCard key={product.id} product={product} />
+              // Store-name line omitted here specifically (Part 10) — the
+              // buyer is already on that store's page, so it's redundant.
+              // Every other ProductCard surface keeps it.
+              <ProductCard key={product.id} product={product} hideStoreName />
             ))}
           </div>
           {products?.products.length === 0 && (
-            <p className="text-sm text-foreground/60">This store hasn&apos;t published any products yet.</p>
+            <p className="text-sm text-muted">This store hasn&apos;t published any products yet.</p>
           )}
         </div>
       </div>

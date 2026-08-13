@@ -16,29 +16,29 @@ function LibraryItem({ entitlement }: { entitlement: DigitalEntitlement }) {
   }
 
   return (
-    <div className="flex items-center gap-4 rounded-md border border-black/10 p-4 dark:border-white/10">
-      <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded bg-black/5 dark:bg-white/5">
+    <div className="flex items-center gap-4 rounded-md border border-border p-4">
+      <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded bg-surface-alt">
         {image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={image.url} alt={entitlement.product.name} loading="lazy" className="h-full w-full object-cover" />
         ) : (
-          <span className="text-[10px] text-foreground/40">No image</span>
+          <span className="text-[10px] text-light">No image</span>
         )}
       </div>
 
       <div className="flex flex-1 flex-col gap-1">
-        <Link href={`/products/${entitlement.product.slug}`} className="text-sm font-medium hover:underline">
+        <Link href={`/products/${entitlement.product.slug}`} className="text-sm font-medium text-heading hover:underline">
           {entitlement.product.name}
         </Link>
-        <p className="text-xs text-foreground/50">{entitlement.product.store.name}</p>
+        <p className="text-xs text-muted">{entitlement.product.store.name}</p>
         {entitlement.latestVersion && (
-          <p className="text-xs text-foreground/50">Version {entitlement.latestVersion.version}</p>
+          <p className="text-xs text-muted">Version {entitlement.latestVersion.version}</p>
         )}
         {requestDownload.isError && (
-          <p className="text-xs text-red-500">{getErrorMessage(requestDownload.error)}</p>
+          <p className="text-xs text-error">{getErrorMessage(requestDownload.error)}</p>
         )}
         {requestDownload.isSuccess && (
-          <p className="break-all text-xs text-foreground/70">File reference: {requestDownload.data.download.fileKey}</p>
+          <p className="break-all text-xs text-body">File reference: {requestDownload.data.download.fileKey}</p>
         )}
       </div>
 
@@ -55,15 +55,15 @@ export default function LibraryPage() {
   return (
     <div className="flex flex-col gap-6 py-6">
       <div>
-        <h2 className="text-lg font-semibold">Your Digital Library</h2>
-        <p className="mt-1 text-sm text-foreground/60">
+        <h2 className="text-lg font-semibold text-heading">Your Digital Library</h2>
+        <p className="mt-1 text-sm text-muted">
           Digital products you&apos;ve purchased. Access always resolves to the latest version a seller has uploaded.
         </p>
       </div>
 
-      {isLoading && <p className="text-sm text-foreground/60">Loading…</p>}
+      {isLoading && <p className="text-sm text-muted">Loading…</p>}
       {isError && <FormMessage type="error">{getErrorMessage(error)}</FormMessage>}
-      {entitlements?.length === 0 && <p className="text-sm text-foreground/60">You haven&apos;t purchased any digital products yet.</p>}
+      {entitlements?.length === 0 && <p className="text-sm text-muted">You haven&apos;t purchased any digital products yet.</p>}
 
       <div className="flex flex-col gap-3">
         {entitlements?.map((entitlement) => (

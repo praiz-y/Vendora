@@ -127,6 +127,25 @@ describe("POST /api/v1/wishlist/items", () => {
     expect(res.body.data.wishlist[0].isAvailable).toBe(true);
   });
 
+  // Overhaul Phase 6: the wishlist page renders items through the shared
+  // ProductCard, which needs a rating summary and category — the same
+  // shape marketplace.service.ts's publicProductSelect exposes elsewhere.
+  it("includes a rating summary and category on the product, matching the shared ProductCard's needs", async () => {
+    const user = await createUser();
+    const store = await createStore();
+    const category = await createCategory();
+    const product = await createProduct(store.id, category.id);
+
+    const res = await request(app)
+      .post("/api/v1/wishlist/items")
+      .set("Authorization", `Bearer ${tokenFor(user)}`)
+      .send({ productId: product.id });
+
+    expect(res.status).toBe(201);
+    expect(res.body.data.wishlist[0].product.rating).toEqual({ averageRating: null, reviewCount: 0 });
+    expect(res.body.data.wishlist[0].product.category.id).toBe(category.id);
+  });
+
   it("rejects adding the same product twice", async () => {
     const user = await createUser();
     const store = await createStore();

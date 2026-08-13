@@ -3,7 +3,11 @@ import { asyncHandler } from "../../utils/asyncHandler";
 import { sendSuccess } from "../../utils/apiResponse";
 import { parsePagination } from "../../utils/pagination";
 import * as marketplaceService from "./marketplace.service";
-import type { ListPublicProductsQuery, RecordProductViewInput } from "./marketplace.validation";
+import type {
+  ListFeaturedStoresQuery,
+  ListPublicProductsQuery,
+  RecordProductViewInput,
+} from "./marketplace.validation";
 
 export const listProducts = asyncHandler(async (req: Request, res: Response) => {
   const query = req.query as unknown as ListPublicProductsQuery;
@@ -31,6 +35,12 @@ export const getProductBySlug = asyncHandler(async (req: Request, res: Response)
 export const getStoreBySlug = asyncHandler(async (req: Request, res: Response) => {
   const store = await marketplaceService.getPublicStoreBySlug(req.params.slug);
   sendSuccess(res, { store }, "Store retrieved.");
+});
+
+export const listFeaturedStores = asyncHandler(async (req: Request, res: Response) => {
+  const { limit } = req.query as unknown as ListFeaturedStoresQuery;
+  const stores = await marketplaceService.getFeaturedStores(limit);
+  sendSuccess(res, { stores }, "Featured stores retrieved.");
 });
 
 export const recordView = asyncHandler(async (req: Request, res: Response) => {

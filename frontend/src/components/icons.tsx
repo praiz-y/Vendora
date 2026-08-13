@@ -126,6 +126,106 @@ export function RefundIcon(props: IconProps) {
   );
 }
 
+export function ChevronLeftIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="m15 6-6 6 6 6" />
+    </svg>
+  );
+}
+
+export function ChevronRightIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="m9 6 6 6-6 6" />
+    </svg>
+  );
+}
+
+export function ArrowRightIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M4 12h16M13 5l7 7-7 7" />
+    </svg>
+  );
+}
+
+// Generic, simplified glyphs (not brand logos) — used only as illustrative
+// placeholders in the Footer, since Vendora has no real social accounts yet.
+export function SocialXIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M5 5l14 14M19 5 5 19" />
+    </svg>
+  );
+}
+
+export function SocialCameraIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <rect x="3" y="6.5" width="18" height="13" rx="2.5" />
+      <circle cx="12" cy="13" r="3.5" />
+      <path d="M8.5 6.5 10 4h4l1.5 2.5" />
+    </svg>
+  );
+}
+
+export function SocialFlagIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M6 3v18" />
+      <path d="M6 4.5c2-1.2 4-1.2 6 0s4 1.2 6 0v8c-2 1.2-4 1.2-6 0s-4-1.2-6 0Z" />
+    </svg>
+  );
+}
+
+export function ChartIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M4 20V10M11 20V4M18 20v-7" />
+      <path d="M3 20h18" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function MoreIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)} fill="currentColor" stroke="none">
+      <circle cx="5" cy="12" r="1.8" />
+      <circle cx="12" cy="12" r="1.8" />
+      <circle cx="19" cy="12" r="1.8" />
+    </svg>
+  );
+}
+
+export function StoreIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M4 9.5 5 4h14l1 5.5" />
+      <path d="M3.5 9.5a2.3 2.3 0 0 0 4.5.7 2.3 2.3 0 0 0 4.5 0 2.3 2.3 0 0 0 4.5 0 2.3 2.3 0 0 0 4.5-.7" />
+      <path d="M5 11v9h14v-9" />
+    </svg>
+  );
+}
+
+export function LogoutIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3" />
+      <path d="M15 8l4 4-4 4M19 12H9" />
+    </svg>
+  );
+}
+
+export function UploadIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M12 15V4M8 8l4-4 4 4" />
+      <path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" />
+    </svg>
+  );
+}
+
 export function StarIcon({ filled, ...props }: IconProps & { filled?: boolean }) {
   return (
     <svg {...iconProps(props)} fill={filled ? "currentColor" : "none"}>

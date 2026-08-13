@@ -219,6 +219,24 @@ export async function getPublicStoreBySlug(slug: string) {
   return { ...store, rating };
 }
 
+const DEFAULT_FEATURED_STORES_LIMIT = 12;
+
+// Overhaul Part 3: admin-curated (Store.isFeatured), opposite of Trending on
+// purpose — "featured" implies editorial intent, not an algorithm. No
+// admin screen exists yet to toggle it (Phase 11) — set directly in the
+// database/seed until then.
+export async function getFeaturedStores(limit = DEFAULT_FEATURED_STORES_LIMIT) {
+  const stores = await prisma.store.findMany({
+    where: { status: "ACTIVE", isFeatured: true },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    select: publicStoreSelect,
+  });
+
+  const ratings = await Promise.all(stores.map((store) => getStoreRatingSummary(store.id)));
+  return stores.map((store, i) => ({ ...store, rating: ratings[i] }));
+}
+
 // Phase 11 analytics: the only writer of ProductView (the model has existed
 // since Phase 1). One row per page visit — the frontend calls this once on
 // product-page mount, separately from the data-fetching query, so React

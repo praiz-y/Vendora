@@ -1,19 +1,33 @@
 import { Prisma } from "@prisma/client";
 import { prisma } from "../../config/prisma";
 import { ApiError } from "../../utils/ApiError";
+import { getProductRatingSummaries } from "../reviews/reviews.service";
 import { addToCart } from "../cart/cart.service";
 
+// Matches marketplace.service.ts's publicProductSelect (plus product/store
+// `status`, which marketplace omits since it only ever shows already-
+// APPROVED/ACTIVE rows — wishlist needs those two fields itself, to flag an
+// item unavailable rather than silently dropping it). Kept in this shape,
+// not the narrower one this used to select, so the frontend can render a
+// wishlist item through the exact same ProductCard as every other surface
+// (Overhaul Phase 6) — including its rating and out-of-stock badge, which
+// the previous select didn't carry.
 const wishlistItemInclude = {
   product: {
     select: {
       id: true,
       slug: true,
       name: true,
+      description: true,
       type: true,
       status: true,
       price: true,
       stockQuantity: true,
-      images: { where: { isPrimary: true }, take: 1, select: { url: true } },
+      shippingType: true,
+      shippingFee: true,
+      createdAt: true,
+      images: { orderBy: { sortOrder: "asc" }, select: { id: true, url: true, isPrimary: true } },
+      category: { select: { id: true, name: true, slug: true } },
       store: { select: { id: true, name: true, slug: true, status: true } },
     },
   },
@@ -33,8 +47,9 @@ function evaluateAvailability(item: WishlistItemWithProduct): { isAvailable: boo
   return { isAvailable: true };
 }
 
-function serialize(item: WishlistItemWithProduct) {
-  return { ...item, ...evaluateAvailability(item) };
+async function serializeAll(items: WishlistItemWithProduct[]) {
+  const ratings = await getProductRatingSummaries(items.map((item) => item.productId));
+  return items.map((item) => ({ ...item, ...evaluateAvailability(item), product: { ...item.product, rating: ratings.get(item.productId)! } }));
 }
 
 export async function getWishlist(userId: string) {
@@ -43,7 +58,7 @@ export async function getWishlist(userId: string) {
     orderBy: { createdAt: "desc" },
     include: wishlistItemInclude,
   });
-  return items.map(serialize);
+  return serializeAll(items);
 }
 
 async function getOwnedWishlistItemOrThrow(userId: string, itemId: string): Promise<WishlistItemWithProduct> {

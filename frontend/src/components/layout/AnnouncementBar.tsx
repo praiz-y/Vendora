@@ -1,34 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useAnnouncement } from "@/features/announcement/hooks";
+import { usePrefersReducedMotion } from "@/lib/usePrefersReducedMotion";
 
 const DISMISS_KEY = "vendora_announcement_dismissed";
 
 // Read once, synchronously, as the initial state value (not inside an
-// effect) — sessionStorage/matchMedia are both available synchronously on
-// the client, so there's no need for an effect-plus-setState roundtrip just
-// to seed state that's known at mount. `typeof window` guards the SSR pass.
+// effect) — sessionStorage is available synchronously on the client, so
+// there's no need for an effect-plus-setState roundtrip just to seed state
+// that's known at mount. `typeof window` guards the SSR pass.
 function readDismissedMessage(): string | null {
   return typeof window === "undefined" ? null : sessionStorage.getItem(DISMISS_KEY);
-}
-
-function readReducedMotionPreference(): boolean {
-  return typeof window === "undefined" ? false : window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
 export function AnnouncementBar() {
   const { data: announcement } = useAnnouncement();
   const [dismissedMessage, setDismissedMessage] = useState<string | null>(readDismissedMessage);
   const [paused, setPaused] = useState(false);
-  const [reducedMotion, setReducedMotion] = useState(readReducedMotionPreference);
-
-  useEffect(() => {
-    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const handleChange = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
-    query.addEventListener("change", handleChange);
-    return () => query.removeEventListener("change", handleChange);
-  }, []);
+  const reducedMotion = usePrefersReducedMotion();
 
   if (!announcement || announcement.message === dismissedMessage) return null;
 

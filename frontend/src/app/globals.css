@@ -64,3 +64,15 @@ body {
     transform: translateX(-50%);
   }
 }
+
+/* Hero carousel (Part 3 of the overhaul plan) — a soft crossfade on the
+   incoming slide's image, keyed per-slide so it re-triggers on every
+   rotation instead of only playing once. */
+@keyframes hero-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

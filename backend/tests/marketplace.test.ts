@@ -370,6 +370,38 @@ describe("GET /api/v1/marketplace/stores/:slug", () => {
   });
 });
 
+describe("GET /api/v1/marketplace/stores/featured", () => {
+  it("returns only ACTIVE stores with isFeatured set", async () => {
+    const featured = await createStore();
+    await prisma.store.update({ where: { id: featured.id }, data: { isFeatured: true } });
+    await createStore(); // not featured — should be excluded
+    const suspendedFeatured = await createStore({ status: "SUSPENDED" });
+    await prisma.store.update({ where: { id: suspendedFeatured.id }, data: { isFeatured: true } });
+
+    const res = await request(app).get("/api/v1/marketplace/stores/featured");
+    expect(res.status).toBe(200);
+    expect(res.body.data.stores).toHaveLength(1);
+    expect(res.body.data.stores[0].id).toBe(featured.id);
+  });
+
+  it("respects the limit param", async () => {
+    for (let i = 0; i < 3; i += 1) {
+      const store = await createStore();
+      await prisma.store.update({ where: { id: store.id }, data: { isFeatured: true } });
+    }
+
+    const res = await request(app).get("/api/v1/marketplace/stores/featured?limit=2");
+    expect(res.status).toBe(200);
+    expect(res.body.data.stores).toHaveLength(2);
+  });
+
+  it("is not shadowed by the /stores/:slug route", async () => {
+    const res = await request(app).get("/api/v1/marketplace/stores/featured");
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.data.stores)).toBe(true);
+  });
+});
+
 describe("POST /api/v1/marketplace/products/:slug/view", () => {
   it("records an anonymous view against visitorId, not userId", async () => {
     const store = await createStore();

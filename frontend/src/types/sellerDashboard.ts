@@ -24,7 +24,14 @@ export interface SellerAnalyticsProductEntry {
   revenue: string;
 }
 
+export interface SellerRevenueTrendPoint {
+  date: string;
+  revenue: string;
+}
+
 export interface SellerAnalytics {
   totals: { views: number; unitsSold: number; revenue: string };
   perProduct: SellerAnalyticsProductEntry[];
+  // 30 daily buckets, oldest first, every day present even at zero revenue.
+  revenueTrend: SellerRevenueTrendPoint[];
 }

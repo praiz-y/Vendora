@@ -201,4 +201,30 @@ describe("GET /api/v1/seller-dashboard/analytics", () => {
     expect(analytics.totals.unitsSold).toBe(3);
     expect(Number(analytics.totals.revenue)).toBe(1500);
   });
+
+  it("buckets revenue into 30 daily entries, crediting today's paid order to today", async () => {
+    const { seller, store } = await createActiveSeller();
+    const category = await createCategory();
+    const product = await createPhysicalProduct(store.id, category.id, 500);
+    const buyer = await createUser();
+    const address = await createAddress(buyer.id);
+    await placeOrder(tokenFor(buyer), product.id, 2, address.id);
+
+    const res = await request(app)
+      .get("/api/v1/seller-dashboard/analytics")
+      .set("Authorization", `Bearer ${tokenFor(seller)}`);
+    expect(res.status).toBe(200);
+    const { revenueTrend } = res.body.data.analytics;
+
+    expect(revenueTrend).toHaveLength(30);
+    const today = new Date().toISOString().slice(0, 10);
+    const todayBucket = revenueTrend.find((entry: { date: string }) => entry.date === today);
+    expect(todayBucket).toBeDefined();
+    expect(Number(todayBucket.revenue)).toBe(1000);
+
+    const otherDaysTotal = revenueTrend
+      .filter((entry: { date: string }) => entry.date !== today)
+      .reduce((sum: number, entry: { revenue: string }) => sum + Number(entry.revenue), 0);
+    expect(otherDaysTotal).toBe(0);
+  });
 });

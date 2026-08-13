@@ -23,6 +23,6 @@ export const listMyStoreReviews = asyncHandler(async (req: Request, res: Respons
   const storeId = await getMyStoreId(req.user!.id);
   const { page, limit } = parsePagination(req.query as Record<string, unknown>);
 
-  const { reviews, meta } = await reviewsService.listMyStoreReviews(storeId, { page, limit });
-  sendSuccess(res, { reviews, meta }, "Reviews retrieved.");
+  const { reviews, meta, summary } = await reviewsService.listMyStoreReviews(storeId, { page, limit });
+  sendSuccess(res, { reviews, meta, summary }, "Reviews retrieved.");
 });

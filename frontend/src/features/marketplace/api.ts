@@ -34,6 +34,8 @@ export const marketplaceApi = {
     apiClient.get<{ products: PublicProduct[]; meta: PaginationMeta }>(`/api/v1/marketplace/products${buildQueryString(params)}`),
   getProductBySlug: (slug: string) => apiClient.get<{ product: PublicProduct }>(`/api/v1/marketplace/products/${slug}`),
   getStoreBySlug: (slug: string) => apiClient.get<{ store: PublicStore }>(`/api/v1/marketplace/stores/${slug}`),
+  listFeaturedStores: (limit?: number) =>
+    apiClient.get<{ stores: PublicStore[] }>(`/api/v1/marketplace/stores/featured${limit ? `?limit=${limit}` : ""}`),
   recordView: (slug: string, visitorId: string) =>
     apiClient.post<Record<string, never>>(`/api/v1/marketplace/products/${slug}/view`, { visitorId }),
 };

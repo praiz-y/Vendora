@@ -19,3 +19,8 @@ export const recordProductViewSchema = z.object({
   visitorId: z.string().trim().min(1).max(100).optional(),
 });
 export type RecordProductViewInput = z.infer<typeof recordProductViewSchema>;
+
+export const listFeaturedStoresQuerySchema = z.object({
+  limit: z.coerce.number().int().positive().max(24).optional(),
+});
+export type ListFeaturedStoresQuery = z.infer<typeof listFeaturedStoresQuerySchema>;

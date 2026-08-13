@@ -30,6 +30,14 @@ export function useMarketplaceStore(slug: string) {
   });
 }
 
+export function useFeaturedStores(limit?: number) {
+  return useQuery({
+    queryKey: ["marketplace", "stores", "featured", limit],
+    queryFn: () => marketplaceApi.listFeaturedStores(limit),
+    select: (data) => data.stores,
+  });
+}
+
 // Fire-and-forget, once per slug per mount — deliberately not a TanStack
 // Query mutation/query (nothing renders off its result, and a query would
 // re-fire on every refetch/refocus, inflating the view count it's supposed

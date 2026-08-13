@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import Link from "next/link";
+import { Badge, type BadgeVariant } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { TextField } from "@/components/ui/TextField";
@@ -11,7 +12,13 @@ import { useMyApplication, useSubmitApplication, useUpdateMyApplication } from "
 import { useRefreshSession } from "@/features/users/hooks";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
 import { useAuthStore } from "@/stores/authStore";
-import type { SellerApplication } from "@/types/store";
+import type { SellerApplication, StoreStatus } from "@/types/store";
+
+const storeStatusVariant: Record<StoreStatus, BadgeVariant> = {
+  ACTIVE: "success",
+  SUSPENDED: "error",
+  CLOSED: "neutral",
+};
 
 const emptyForm: SellerApplicationFormInput = {
   storeName: "",
@@ -129,13 +136,15 @@ export default function SellingPage() {
   if (user?.seller) {
     return (
       <div className="flex flex-col gap-4 py-6">
-        <h2 className="text-lg font-semibold">Selling on Vendora</h2>
-        <div className="rounded-md border border-black/10 p-4 dark:border-white/10">
-          <p className="text-sm">
-            You have a store: <span className="font-medium">{user.seller.storeName}</span>
+        <h2 className="text-lg font-semibold text-heading">Selling on Vendora</h2>
+        <div className="rounded-md border border-border p-4">
+          <p className="text-sm text-body">
+            You have a store: <span className="font-medium text-heading">{user.seller.storeName}</span>
           </p>
-          <p className="mt-1 text-sm text-foreground/60">Status: {user.seller.status}</p>
-          <Link href="/seller/profile" className="mt-3 inline-block text-sm font-medium underline">
+          <div className="mt-2">
+            <Badge variant={storeStatusVariant[user.seller.status]}>{user.seller.status}</Badge>
+          </div>
+          <Link href="/seller/profile" className="mt-3 inline-block text-sm font-medium text-primary underline">
             Go to your seller dashboard →
           </Link>
         </div>
@@ -144,15 +153,15 @@ export default function SellingPage() {
   }
 
   if (isLoading) {
-    return <p className="py-6 text-sm text-foreground/60">Loading…</p>;
+    return <p className="py-6 text-sm text-muted">Loading…</p>;
   }
 
   if (!application) {
     return (
       <div className="flex flex-col gap-6 py-6">
         <div>
-          <h2 className="text-lg font-semibold">Become a Seller</h2>
-          <p className="mt-1 text-sm text-foreground/60">
+          <h2 className="text-lg font-semibold text-heading">Become a Seller</h2>
+          <p className="mt-1 text-sm text-muted">
             Tell us about your store. An admin will review your application before it goes live.
           </p>
         </div>
@@ -165,8 +174,11 @@ export default function SellingPage() {
     return (
       <div className="flex flex-col gap-6 py-6">
         <div>
-          <h2 className="text-lg font-semibold">Seller application: Pending review</h2>
-          <p className="mt-1 text-sm text-foreground/60">
+          <div className="flex items-center gap-2">
+            <h2 className="text-lg font-semibold text-heading">Seller application</h2>
+            <Badge variant="warning">Pending</Badge>
+          </div>
+          <p className="mt-1 text-sm text-muted">
             Submitted {new Date(application.submittedAt).toLocaleDateString()}. You can still edit it while it&apos;s
             under review.
           </p>
@@ -179,11 +191,14 @@ export default function SellingPage() {
   return (
     <div className="flex flex-col gap-6 py-6">
       <div>
-        <h2 className="text-lg font-semibold">Seller application: Rejected</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-heading">Seller application</h2>
+          <Badge variant="error">Rejected</Badge>
+        </div>
         <div className="mt-2">
           <FormMessage type="error">{application.rejectionReason ?? "No reason was given."}</FormMessage>
         </div>
-        <p className="mt-2 text-sm text-foreground/60">
+        <p className="mt-2 text-sm text-muted">
           Edit and resubmit your application below — it will go back into the review queue.
         </p>
       </div>

@@ -87,12 +87,15 @@ export async function listProductReviews(
   };
 }
 
-// Seller Dashboard's Reviews tab (Phase 3 placeholder) — every review across
-// every product in the seller's own store, not scoped to one product.
+// Seller Dashboard's Reviews tab — every review across every product in the
+// seller's own store, not scoped to one product. `summary` (Overhaul Phase
+// 9) is computed over the *entire* matching set, not just the current page
+// — the tab's aggregate rating + star-distribution bars would otherwise be
+// wrong for any store with more reviews than fit on one page.
 export async function listMyStoreReviews(storeId: string, params: PaginationParams) {
   const where = { product: { storeId } };
 
-  const [reviews, total] = await Promise.all([
+  const [reviews, total, aggregate, grouped] = await Promise.all([
     prisma.review.findMany({
       where,
       orderBy: { createdAt: "desc" },
@@ -100,9 +103,20 @@ export async function listMyStoreReviews(storeId: string, params: PaginationPara
       include: { ...reviewInclude, product: { select: { id: true, name: true, slug: true } } },
     }),
     prisma.review.count({ where }),
+    prisma.review.aggregate({ where, _avg: { rating: true } }),
+    prisma.review.groupBy({ by: ["rating"], where, _count: { _all: true } }),
   ]);
 
-  return { reviews, meta: buildPaginationMeta(params, total) };
+  const distribution: Record<1 | 2 | 3 | 4 | 5, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  for (const g of grouped) {
+    distribution[g.rating as 1 | 2 | 3 | 4 | 5] = g._count._all;
+  }
+
+  return {
+    reviews,
+    meta: buildPaginationMeta(params, total),
+    summary: { averageRating: aggregate._avg.rating, reviewCount: total, distribution },
+  };
 }
 
 export interface ProductRatingSummary {

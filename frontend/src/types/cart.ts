@@ -1,4 +1,4 @@
-import type { ProductType, ShippingType } from "./product";
+import type { ProductType, PublicProduct, ShippingType } from "./product";
 
 export type AvailabilityIssue = "PRODUCT_UNAVAILABLE" | "STORE_UNAVAILABLE" | "INSUFFICIENT_STOCK" | "OUT_OF_STOCK";
 
@@ -38,5 +38,8 @@ export interface WishlistItem {
   createdAt: string;
   isAvailable: boolean;
   issue?: AvailabilityIssue;
-  product: CartWishlistProductSnapshot;
+  // Full PublicProduct shape (Overhaul Phase 6) — the wishlist grid renders
+  // this through the same ProductCard every other surface uses, which
+  // needs rating/images[].isPrimary that the old narrower shape lacked.
+  product: PublicProduct;
 }

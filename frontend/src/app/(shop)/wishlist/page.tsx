@@ -1,49 +1,59 @@
 "use client";
 
 import Link from "next/link";
+import { ProductCard } from "@/components/marketplace/ProductCard";
 import { Button } from "@/components/ui/Button";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { useRequireAuth } from "@/features/auth/useRequireAuth";
 import { useMoveToCart, useRemoveFromWishlist, useWishlist } from "@/features/wishlist/hooks";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
-import { formatNaira } from "@/lib/currency";
+import { toast } from "@/stores/toastStore";
 import type { WishlistItem } from "@/types/cart";
 
 const issueMessages: Record<string, string> = {
   PRODUCT_UNAVAILABLE: "No longer available",
   STORE_UNAVAILABLE: "Seller is currently unavailable",
-  OUT_OF_STOCK: "Out of stock",
 };
 
 function WishlistCard({ item }: { item: WishlistItem }) {
   const removeItem = useRemoveFromWishlist();
   const moveToCart = useMoveToCart();
-  const image = item.product.images[0];
 
   return (
-    <div className="flex items-center gap-4 rounded-md border border-black/10 p-4 dark:border-white/10">
-      <div className="flex h-16 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded bg-black/5 dark:bg-white/5">
-        {image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={image.url} alt={item.product.name} loading="lazy" className="h-full w-full object-cover" />
-        ) : (
-          <span className="text-[10px] text-foreground/40">No image</span>
-        )}
-      </div>
-
-      <div className="flex flex-1 flex-col gap-1">
-        <Link href={`/products/${item.product.slug}`} className="text-sm font-medium hover:underline">
-          {item.product.name}
-        </Link>
-        <p className="text-sm text-foreground/60">{formatNaira(item.product.price)}</p>
-        {!item.isAvailable && item.issue && <p className="text-xs text-red-500">{issueMessages[item.issue] ?? "Unavailable"}</p>}
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <Button onClick={() => moveToCart.mutate(item.id)} loading={moveToCart.isPending} disabled={!item.isAvailable}>
+    <div className="relative flex flex-col gap-2">
+      <ProductCard product={item.product} />
+      {/* OUT_OF_STOCK is already covered by ProductCard's own ribbon (same
+          underlying stockQuantity check) — only the two issues ProductCard
+          has no way to detect on its own get a second overlay here. */}
+      {!item.isAvailable && item.issue && issueMessages[item.issue] && (
+        <span className="pointer-events-none absolute left-2 top-2 rounded bg-heading/80 px-2 py-1 text-xs font-medium text-white">
+          {issueMessages[item.issue]}
+        </span>
+      )}
+      <div className="flex gap-2">
+        <Button
+          className="flex-1"
+          onClick={() =>
+            moveToCart.mutate(item.id, {
+              onSuccess: () => toast.success("Moved to cart."),
+              onError: (error) => toast.error(getErrorMessage(error)),
+            })
+          }
+          loading={moveToCart.isPending}
+          disabled={!item.isAvailable}
+        >
           Move to Cart
         </Button>
-        <Button variant="secondary" onClick={() => removeItem.mutate(item.id)} loading={removeItem.isPending}>
+        <Button
+          variant="secondary"
+          onClick={() =>
+            removeItem.mutate(item.id, {
+              onSuccess: () => toast.success("Removed from wishlist."),
+              onError: (error) => toast.error(getErrorMessage(error)),
+            })
+          }
+          loading={removeItem.isPending}
+        >
           Remove
         </Button>
       </div>
@@ -54,33 +64,33 @@ function WishlistCard({ item }: { item: WishlistItem }) {
 export default function WishlistPage() {
   const authStatus = useRequireAuth();
   const { data: wishlist, isLoading, isError, error } = useWishlist();
-  const moveToCart = useMoveToCart();
 
   if (authStatus !== "authenticated") {
-    return <div className="mx-auto max-w-3xl px-4 py-8 text-sm text-foreground/60">Loading…</div>;
+    return <div className="mx-auto max-w-6xl px-4 py-8 text-sm text-muted">Loading…</div>;
   }
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-8">
-      <h1 className="text-xl font-semibold">Your Wishlist</h1>
+    <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8">
+      <h1 className="text-xl font-semibold text-heading">Your Wishlist</h1>
 
-      {isLoading && <p className="text-sm text-foreground/60">Loading…</p>}
+      {isLoading && <p className="text-sm text-muted">Loading…</p>}
       {isError && <FormMessage type="error">{getErrorMessage(error)}</FormMessage>}
-      {moveToCart.isError && <FormMessage type="error">{getErrorMessage(moveToCart.error)}</FormMessage>}
       {wishlist?.length === 0 && (
         <div className="flex flex-col items-start gap-3">
-          <p className="text-sm text-foreground/60">Your wishlist is empty.</p>
+          <p className="text-sm text-muted">Your wishlist is empty.</p>
           <Link href="/products">
             <Button variant="secondary">Browse products</Button>
           </Link>
         </div>
       )}
 
-      <div className="flex flex-col gap-3">
-        {wishlist?.map((item) => (
-          <WishlistCard key={item.id} item={item} />
-        ))}
-      </div>
+      {wishlist && wishlist.length > 0 && (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+          {wishlist.map((item) => (
+            <WishlistCard key={item.id} item={item} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

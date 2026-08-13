@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { Badge, type BadgeVariant } from "@/components/ui/Badge";
+import { Button } from "@/components/ui/Button";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { useRequireAuth } from "@/features/auth/useRequireAuth";
 import { useMyOrders } from "@/features/orders/hooks";
@@ -17,14 +19,14 @@ const statusTabs: { label: string; value: OrderStatus | undefined }[] = [
   { label: "Cancelled", value: "CANCELLED" },
 ];
 
-const statusBadgeClasses: Record<OrderStatus, string> = {
-  PENDING_PAYMENT: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  PAID: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-  PARTIALLY_PROCESSING: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-  PARTIALLY_SHIPPED: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-  PARTIALLY_DELIVERED: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-  COMPLETED: "bg-green-500/10 text-green-700 dark:text-green-400",
-  CANCELLED: "bg-black/10 text-foreground/50 dark:bg-white/10",
+const statusBadgeVariant: Record<OrderStatus, BadgeVariant> = {
+  PENDING_PAYMENT: "warning",
+  PAID: "info",
+  PARTIALLY_PROCESSING: "info",
+  PARTIALLY_SHIPPED: "info",
+  PARTIALLY_DELIVERED: "info",
+  COMPLETED: "success",
+  CANCELLED: "neutral",
 };
 
 export default function OrdersPage() {
@@ -33,12 +35,12 @@ export default function OrdersPage() {
   const { data, isLoading, isError, error } = useMyOrders({ status });
 
   if (authStatus !== "authenticated") {
-    return <div className="mx-auto max-w-3xl px-4 py-8 text-sm text-foreground/60">Loading…</div>;
+    return <div className="mx-auto max-w-3xl px-4 py-8 text-sm text-muted">Loading…</div>;
   }
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-8">
-      <h1 className="text-xl font-semibold">Your Orders</h1>
+      <h1 className="text-xl font-semibold text-heading">Your Orders</h1>
 
       <div className="flex flex-wrap gap-2">
         {statusTabs.map((tab) => (
@@ -47,8 +49,8 @@ export default function OrdersPage() {
             onClick={() => setStatus(tab.value)}
             className={`rounded-md px-3 py-1.5 text-sm font-medium ${
               status === tab.value
-                ? "bg-foreground text-background"
-                : "border border-black/15 text-foreground/70 hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
+                ? "bg-primary text-white"
+                : "border border-border text-body hover:bg-surface-alt"
             }`}
           >
             {tab.label}
@@ -56,27 +58,32 @@ export default function OrdersPage() {
         ))}
       </div>
 
-      {isLoading && <p className="text-sm text-foreground/60">Loading…</p>}
+      {isLoading && <p className="text-sm text-muted">Loading…</p>}
       {isError && <FormMessage type="error">{getErrorMessage(error)}</FormMessage>}
-      {data?.orders.length === 0 && <p className="text-sm text-foreground/60">No orders in this category.</p>}
+      {data?.orders.length === 0 && (
+        <div className="flex flex-col items-start gap-3">
+          <p className="text-sm text-muted">No orders in this category.</p>
+          <Link href="/products">
+            <Button variant="secondary">Browse products</Button>
+          </Link>
+        </div>
+      )}
 
       <div className="flex flex-col gap-3">
         {data?.orders.map((order) => (
           <Link
             key={order.id}
             href={`/orders/${order.id}`}
-            className="flex items-center justify-between rounded-md border border-black/10 p-4 hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
+            className="flex items-center justify-between rounded-md border border-border p-4 hover:bg-surface-alt"
           >
             <div>
-              <p className="text-sm font-medium">Order #{order.id.slice(-8)}</p>
-              <p className="text-sm text-foreground/60">
+              <p className="text-sm font-medium text-heading">Order #{order.id.slice(-8)}</p>
+              <p className="text-sm text-muted">
                 {new Date(order.placedAt).toLocaleDateString()} · {order.sellerOrders.length} seller
                 {order.sellerOrders.length === 1 ? "" : "s"} · {formatNaira(order.totalAmount)}
               </p>
             </div>
-            <span className={`rounded px-2 py-1 text-xs font-medium ${statusBadgeClasses[order.status]}`}>
-              {order.status.replace(/_/g, " ")}
-            </span>
+            <Badge variant={statusBadgeVariant[order.status]}>{order.status.replace(/_/g, " ")}</Badge>
           </Link>
         ))}
       </div>
