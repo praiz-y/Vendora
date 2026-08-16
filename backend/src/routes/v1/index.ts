@@ -30,6 +30,7 @@ import announcementRoutes from "../../modules/announcement/announcement.routes";
 import adminAnnouncementRoutes from "../../modules/announcement/admin/announcement.admin.routes";
 import heroSlidesRoutes from "../../modules/heroSlides/heroSlides.routes";
 import adminHeroSlidesRoutes from "../../modules/heroSlides/admin/heroSlides.admin.routes";
+import uploadsRoutes from "../../modules/uploads/uploads.routes";
 
 const router = Router();
 
@@ -64,5 +65,6 @@ router.use("/announcement", announcementRoutes);
 router.use("/admin/announcement", adminAnnouncementRoutes);
 router.use("/hero-slides", heroSlidesRoutes);
 router.use("/admin/hero-slides", adminHeroSlidesRoutes);
+router.use("/uploads", uploadsRoutes);
 
 export default router;

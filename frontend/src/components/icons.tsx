@@ -226,6 +226,90 @@ export function UploadIcon(props: IconProps) {
   );
 }
 
+export function ClipboardIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <rect x="5" y="4" width="14" height="17" rx="2" />
+      <rect x="9" y="2.5" width="6" height="3" rx="1" />
+      <path d="M8.5 11h7M8.5 15h7" />
+    </svg>
+  );
+}
+
+export function TagIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M11.5 3h6.5a1 1 0 0 1 1 1v6.5a1 1 0 0 1-.3.7l-9 9a1 1 0 0 1-1.4 0l-6.5-6.5a1 1 0 0 1 0-1.4l9-9a1 1 0 0 1 .7-.3Z" />
+      <circle cx="15.5" cy="7.5" r="1.4" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+export function FlagIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M6 21V4" />
+      <path d="M6 4.5c2-1.2 4-1.2 6 0s4 1.2 6 0v9c-2 1.2-4 1.2-6 0s-4-1.2-6 0Z" />
+    </svg>
+  );
+}
+
+export function ListIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M9 6h11M9 12h11M9 18h11" />
+      <circle cx="4.5" cy="6" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="4.5" cy="12" r="1.2" fill="currentColor" stroke="none" />
+      <circle cx="4.5" cy="18" r="1.2" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+export function MenuIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </svg>
+  );
+}
+
+export function MegaphoneIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M3 10v4a1 1 0 0 0 1 1h2l1.5 5h2L8 15h2l8 4V5l-8 4H4a1 1 0 0 0-1 1Z" />
+    </svg>
+  );
+}
+
+export function ImagesIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <rect x="3" y="5" width="14" height="12" rx="2" />
+      <circle cx="8" cy="10" r="1.5" />
+      <path d="m5 15 3.5-3.5L11 14l2.5-2.5L17 15" />
+      <path d="M20.5 8v9a2 2 0 0 1-2 2H9" />
+    </svg>
+  );
+}
+
+export function MapPinIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M12 21s7-6.4 7-11.5A7 7 0 0 0 5 9.5C5 14.6 12 21 12 21Z" />
+      <circle cx="12" cy="9.5" r="2.5" />
+    </svg>
+  );
+}
+
+export function BookIcon(props: IconProps) {
+  return (
+    <svg {...iconProps(props)}>
+      <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5Z" />
+      <path d="M4 5.5v16" />
+    </svg>
+  );
+}
+
 export function StarIcon({ filled, ...props }: IconProps & { filled?: boolean }) {
   return (
     <svg {...iconProps(props)} fill={filled ? "currentColor" : "none"}>

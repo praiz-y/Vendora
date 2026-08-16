@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { CartIcon, SearchIcon, UserIcon } from "@/components/icons";
 import { useCart } from "@/features/cart/hooks";
@@ -24,12 +25,17 @@ export function SiteHeader() {
   const { data: wishlist } = useWishlist();
   const [searchOpen, setSearchOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  // /products has its own full, always-visible search bar (Overhaul
+  // Phase 15) — showing this icon's overlay there too would be a second,
+  // redundant way to search the same page.
+  const pathname = usePathname();
+  const showSearchIcon = pathname !== "/products";
 
   const cartCount = cart?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
   const wishlistCount = wishlist?.length ?? 0;
 
   return (
-    <header className="border-b border-border bg-surface">
+    <header className="sticky top-0 z-30 border-b border-border bg-surface">
       {/* Desktop */}
       <div className="mx-auto hidden max-w-6xl grid-cols-[1fr_auto_1fr] items-center gap-4 px-4 py-3 md:grid">
         <nav className="flex items-center gap-6 text-sm font-medium text-body">
@@ -47,14 +53,16 @@ export function SiteHeader() {
         </Link>
 
         <div className="flex items-center justify-end gap-5 text-sm font-medium text-body">
-          <button
-            type="button"
-            onClick={() => setSearchOpen(true)}
-            aria-label="Search products"
-            className="hover:text-primary"
-          >
-            <SearchIcon className="h-5 w-5" />
-          </button>
+          {showSearchIcon && (
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              aria-label="Search products"
+              className="hover:text-primary"
+            >
+              <SearchIcon className="h-5 w-5" />
+            </button>
+          )}
           <Link href="/cart" className="relative hover:text-primary" aria-label="Cart">
             <CartIcon className="h-5 w-5" />
             {cartCount > 0 && <CountBadge count={cartCount} />}
@@ -85,14 +93,16 @@ export function SiteHeader() {
         <Link href="/" className="text-lg font-semibold tracking-tight text-primary">
           Vendora
         </Link>
-        <button
-          type="button"
-          onClick={() => setSearchOpen(true)}
-          aria-label="Search products"
-          className="text-body hover:text-primary"
-        >
-          <SearchIcon className="h-5 w-5" />
-        </button>
+        {showSearchIcon && (
+          <button
+            type="button"
+            onClick={() => setSearchOpen(true)}
+            aria-label="Search products"
+            className="text-body hover:text-primary"
+          >
+            <SearchIcon className="h-5 w-5" />
+          </button>
+        )}
       </div>
 
       {searchOpen && <SearchOverlay onClose={() => setSearchOpen(false)} />}

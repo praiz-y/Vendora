@@ -1,11 +1,15 @@
 "use client";
 
-import Link from "next/link";
-import { useState } from "react";
+import { Suspense } from "react";
+import { AdminMasterDetail } from "@/components/admin/AdminMasterDetail";
+import { Badge, type BadgeVariant } from "@/components/ui/Badge";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { useAdminSellerApplications } from "@/features/admin/sellerApplications/hooks";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { useAdminDetailSelection } from "@/lib/useAdminDetailSelection";
+import { useAdminUrlFilters } from "@/lib/useAdminUrlFilters";
 import type { SellerApplicationStatus } from "@/types/store";
+import { SellerApplicationDetail } from "./_components/SellerApplicationDetail";
 
 const statusTabs: { label: string; value: SellerApplicationStatus | undefined }[] = [
   { label: "Pending", value: "PENDING" },
@@ -14,32 +18,31 @@ const statusTabs: { label: string; value: SellerApplicationStatus | undefined }[
   { label: "All", value: undefined },
 ];
 
-const statusBadgeClasses: Record<SellerApplicationStatus, string> = {
-  PENDING: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  APPROVED: "bg-green-500/10 text-green-700 dark:text-green-400",
-  REJECTED: "bg-red-500/10 text-red-600 dark:text-red-400",
+const statusVariant: Record<SellerApplicationStatus, BadgeVariant> = {
+  PENDING: "warning",
+  APPROVED: "success",
+  REJECTED: "error",
 };
 
-export default function AdminSellerApplicationsPage() {
-  const [status, setStatus] = useState<SellerApplicationStatus | undefined>("PENDING");
+function SellerApplicationsList({ selectedId, onSelect }: { selectedId: string | null; onSelect: (id: string) => void }) {
+  const { get, set } = useAdminUrlFilters();
+  const status = (get("status", "PENDING") || undefined) as SellerApplicationStatus | undefined;
   const { data, isLoading, isError, error } = useAdminSellerApplications({ status });
 
   return (
-    <div className="flex flex-col gap-6 py-6">
+    <div className="flex flex-col gap-6">
       <div>
-        <h2 className="text-lg font-semibold">Seller Applications</h2>
-        <p className="mt-1 text-sm text-foreground/60">Review and approve or reject seller applications.</p>
+        <h2 className="text-lg font-semibold text-heading">Seller Applications</h2>
+        <p className="mt-1 text-sm text-muted">Review and approve or reject seller applications.</p>
       </div>
 
       <div className="flex gap-2">
         {statusTabs.map((tab) => (
           <button
             key={tab.label}
-            onClick={() => setStatus(tab.value)}
+            onClick={() => set({ status: tab.value })}
             className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-              status === tab.value
-                ? "bg-foreground text-background"
-                : "border border-black/15 text-foreground/70 hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
+              status === tab.value ? "bg-primary-hover text-white" : "border border-border-admin text-body transition-colors hover:bg-surface-alt"
             }`}
           >
             {tab.label}
@@ -47,34 +50,51 @@ export default function AdminSellerApplicationsPage() {
         ))}
       </div>
 
-      {isLoading && <p className="text-sm text-foreground/60">Loading…</p>}
+      {isLoading && <p className="text-sm text-muted">Loading…</p>}
       {isError && <FormMessage type="error">{getErrorMessage(error)}</FormMessage>}
 
       <div className="flex flex-col gap-3">
         {data?.applications.map((application) => (
-          <Link
+          <button
             key={application.id}
-            href={`/admin/seller-applications/${application.id}`}
-            className="flex items-center justify-between rounded-md border border-black/10 p-4 hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
+            onClick={() => onSelect(application.id)}
+            className={`flex items-center justify-between rounded-md border p-4 text-left transition-colors hover:bg-surface-alt ${
+              selectedId === application.id ? "border-primary" : "border-border-admin"
+            }`}
           >
             <div>
-              <p className="text-sm font-medium">{application.storeName}</p>
-              <p className="text-sm text-foreground/60">
+              <p className="text-sm font-medium text-heading">{application.storeName}</p>
+              <p className="text-sm text-muted">
                 {application.applicant.firstName} {application.applicant.lastName} (@{application.applicant.username})
               </p>
-              <p className="text-xs text-foreground/50">
-                Submitted {new Date(application.submittedAt).toLocaleDateString()}
-              </p>
+              <p className="text-xs text-light">Submitted {new Date(application.submittedAt).toLocaleDateString()}</p>
             </div>
-            <span className={`rounded px-2 py-1 text-xs font-medium ${statusBadgeClasses[application.status]}`}>
-              {application.status}
-            </span>
-          </Link>
+            <Badge variant={statusVariant[application.status]}>{application.status}</Badge>
+          </button>
         ))}
-        {data?.applications.length === 0 && (
-          <p className="text-sm text-foreground/60">No applications in this category.</p>
-        )}
+        {data?.applications.length === 0 && <p className="text-sm text-muted">No applications in this category.</p>}
       </div>
     </div>
+  );
+}
+
+function AdminSellerApplicationsContent() {
+  const { selectedId, select, clear } = useAdminDetailSelection();
+
+  return (
+    <AdminMasterDetail
+      list={<SellerApplicationsList selectedId={selectedId} onSelect={select} />}
+      detail={selectedId ? <SellerApplicationDetail id={selectedId} /> : null}
+      detailKey={selectedId}
+      onCloseDetail={clear}
+    />
+  );
+}
+
+export default function AdminSellerApplicationsPage() {
+  return (
+    <Suspense fallback={<p className="py-6 text-sm text-muted">Loading…</p>}>
+      <AdminSellerApplicationsContent />
+    </Suspense>
   );
 }

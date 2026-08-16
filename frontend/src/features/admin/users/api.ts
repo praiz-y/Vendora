@@ -1,6 +1,6 @@
 import { apiClient } from "@/lib/api/client";
 import type { PaginationMeta } from "@/types/store";
-import type { SafeUser, UserRole, UserStatus } from "@/types/user";
+import type { AdminSafeUser, UserRole, UserStatus } from "@/types/user";
 
 export interface AdminUsersListParams {
   role?: UserRole;
@@ -23,10 +23,14 @@ function buildQueryString(params: AdminUsersListParams): string {
 
 export const adminUsersApi = {
   list: (params: AdminUsersListParams = {}) =>
-    apiClient.get<{ users: SafeUser[]; meta: PaginationMeta }>(`/api/v1/admin/users${buildQueryString(params)}`),
-  getById: (id: string) => apiClient.get<{ user: SafeUser }>(`/api/v1/admin/users/${id}`),
-  suspend: (id: string) => apiClient.post<{ user: SafeUser }>(`/api/v1/admin/users/${id}/suspend`),
-  reactivate: (id: string) => apiClient.post<{ user: SafeUser }>(`/api/v1/admin/users/${id}/reactivate`),
-  suspendStore: (id: string) => apiClient.post<{ user: SafeUser }>(`/api/v1/admin/users/${id}/store/suspend`),
-  reactivateStore: (id: string) => apiClient.post<{ user: SafeUser }>(`/api/v1/admin/users/${id}/store/reactivate`),
+    apiClient.get<{ users: AdminSafeUser[]; meta: PaginationMeta }>(`/api/v1/admin/users${buildQueryString(params)}`),
+  getById: (id: string) => apiClient.get<{ user: AdminSafeUser }>(`/api/v1/admin/users/${id}`),
+  suspend: (id: string, reason: string) =>
+    apiClient.post<{ user: AdminSafeUser }>(`/api/v1/admin/users/${id}/suspend`, { reason }),
+  reactivate: (id: string) => apiClient.post<{ user: AdminSafeUser }>(`/api/v1/admin/users/${id}/reactivate`),
+  suspendStore: (id: string, reason: string) =>
+    apiClient.post<{ user: AdminSafeUser }>(`/api/v1/admin/users/${id}/store/suspend`, { reason }),
+  reactivateStore: (id: string) => apiClient.post<{ user: AdminSafeUser }>(`/api/v1/admin/users/${id}/store/reactivate`),
+  featureStore: (id: string) => apiClient.post<{ user: AdminSafeUser }>(`/api/v1/admin/users/${id}/store/feature`),
+  unfeatureStore: (id: string) => apiClient.post<{ user: AdminSafeUser }>(`/api/v1/admin/users/${id}/store/unfeature`),
 };

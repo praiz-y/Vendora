@@ -65,12 +65,14 @@ function StoreProfileForm({ store }: { store: Store }) {
       <Dropzone
         label="Store logo"
         inputName="logoUrl"
+        folder="stores"
         imageUrl={form.logoUrl ?? ""}
         onUrlChange={(url) => setForm((f) => ({ ...f, logoUrl: url }))}
       />
       <Dropzone
         label="Store banner"
         inputName="bannerUrl"
+        folder="stores"
         imageUrl={form.bannerUrl ?? ""}
         onUrlChange={(url) => setForm((f) => ({ ...f, bannerUrl: url }))}
       />

@@ -4,6 +4,7 @@ import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import Link from "next/link";
 import { Badge, type BadgeVariant } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
+import { Dropzone } from "@/components/ui/Dropzone";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { TextField } from "@/components/ui/TextField";
 import { Textarea } from "@/components/ui/Textarea";
@@ -87,17 +88,19 @@ function ApplicationForm({ initialValues, mode }: { initialValues: SellerApplica
         <TextField label="Business email" name="email" type="email" required value={form.email} onChange={handleChange("email")} />
       </div>
       <TextField label="Location" name="location" required value={form.location} onChange={handleChange("location")} />
-      <TextField
-        label="Store logo URL (optional)"
-        name="storeLogoUrl"
-        value={form.storeLogoUrl ?? ""}
-        onChange={handleChange("storeLogoUrl")}
+      <Dropzone
+        label="Store logo (optional)"
+        inputName="storeLogoUrl"
+        folder="seller-applications"
+        imageUrl={form.storeLogoUrl ?? ""}
+        onUrlChange={(url) => setForm((f) => ({ ...f, storeLogoUrl: url }))}
       />
-      <TextField
-        label="Store banner URL (optional)"
-        name="storeBannerUrl"
-        value={form.storeBannerUrl ?? ""}
-        onChange={handleChange("storeBannerUrl")}
+      <Dropzone
+        label="Store banner (optional)"
+        inputName="storeBannerUrl"
+        folder="seller-applications"
+        imageUrl={form.storeBannerUrl ?? ""}
+        onUrlChange={(url) => setForm((f) => ({ ...f, storeBannerUrl: url }))}
       />
       <TextField
         label="Business registration (optional)"

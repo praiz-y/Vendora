@@ -23,6 +23,12 @@ export interface SafeUser {
   seller: SellerCapability | null;
 }
 
+// Adds isFeatured to the seller projection — admin-only, mirrors the
+// backend's AdminSafeUser (backend/src/modules/users/admin/users.admin.service.ts).
+export interface AdminSafeUser extends SafeUser {
+  seller: (SellerCapability & { isFeatured: boolean }) | null;
+}
+
 export interface Address {
   id: string;
   userId: string;

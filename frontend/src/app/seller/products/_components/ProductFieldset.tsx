@@ -113,6 +113,7 @@ export function ProductFieldset({
           <div key={index} className="flex flex-col gap-2 rounded-md border border-border p-3">
             <Dropzone
               label={`Image ${index + 1}`}
+              folder="products"
               imageUrl={image.url}
               onUrlChange={(url) => updateImageUrl(index, url)}
             />

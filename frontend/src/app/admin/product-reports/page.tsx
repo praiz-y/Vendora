@@ -1,12 +1,21 @@
 "use client";
 
-import Link from "next/link";
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { AdminBulkBar } from "@/components/admin/AdminBulkBar";
+import { AdminMasterDetail } from "@/components/admin/AdminMasterDetail";
+import { Badge, type BadgeVariant } from "@/components/ui/Badge";
 import { FormMessage } from "@/components/ui/FormMessage";
-import { useAdminProductReports } from "@/features/admin/productReports/hooks";
+import {
+  useAdminProductReports,
+  useBulkDismissProductReports,
+  useBulkResolveProductReports,
+} from "@/features/admin/productReports/hooks";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { useAdminDetailSelection } from "@/lib/useAdminDetailSelection";
+import { useAdminUrlFilters } from "@/lib/useAdminUrlFilters";
 import { reportReasonLabels } from "@/types/productReport";
 import type { ProductReportStatus } from "@/types/productReport";
+import { ProductReportDetail } from "./_components/ProductReportDetail";
 
 const statusTabs: { label: string; value: ProductReportStatus | undefined }[] = [
   { label: "Pending", value: "PENDING" },
@@ -15,32 +24,55 @@ const statusTabs: { label: string; value: ProductReportStatus | undefined }[] = 
   { label: "All", value: undefined },
 ];
 
-const statusBadgeClasses: Record<ProductReportStatus, string> = {
-  PENDING: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  RESOLVED: "bg-green-500/10 text-green-700 dark:text-green-400",
-  DISMISSED: "bg-black/10 text-foreground/50 dark:bg-white/10",
+const statusVariant: Record<ProductReportStatus, BadgeVariant> = {
+  PENDING: "warning",
+  RESOLVED: "success",
+  DISMISSED: "neutral",
 };
 
-export default function AdminProductReportsPage() {
-  const [status, setStatus] = useState<ProductReportStatus | undefined>("PENDING");
+function ProductReportsList({ selectedId, onSelect }: { selectedId: string | null; onSelect: (id: string) => void }) {
+  const { get, set } = useAdminUrlFilters();
+  const status = (get("status", "PENDING") || undefined) as ProductReportStatus | undefined;
   const { data, isLoading, isError, error } = useAdminProductReports({ status });
+  const [checked, setChecked] = useState<Set<string>>(new Set());
+
+  const bulkResolve = useBulkResolveProductReports();
+  const bulkDismiss = useBulkDismissProductReports();
+  const bulkPending = bulkResolve.isPending || bulkDismiss.isPending;
+
+  function handleStatusChange(next: ProductReportStatus | undefined) {
+    setChecked(new Set());
+    set({ status: next });
+  }
+
+  function toggleChecked(id: string) {
+    setChecked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    if (!data) return;
+    setChecked((prev) => (prev.size === data.reports.length ? new Set() : new Set(data.reports.map((r) => r.id))));
+  }
 
   return (
-    <div className="flex flex-col gap-6 py-6">
+    <div className="flex flex-col gap-6">
       <div>
-        <h2 className="text-lg font-semibold">Product Reports</h2>
-        <p className="mt-1 text-sm text-foreground/60">Review reports submitted by buyers and resolve or dismiss them.</p>
+        <h2 className="text-lg font-semibold text-heading">Product Reports</h2>
+        <p className="mt-1 text-sm text-muted">Review reports submitted by buyers and resolve or dismiss them.</p>
       </div>
 
       <div className="flex gap-2">
         {statusTabs.map((tab) => (
           <button
             key={tab.label}
-            onClick={() => setStatus(tab.value)}
+            onClick={() => handleStatusChange(tab.value)}
             className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-              status === tab.value
-                ? "bg-foreground text-background"
-                : "border border-black/15 text-foreground/70 hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
+              status === tab.value ? "bg-primary-hover text-white" : "border border-border-admin text-body transition-colors hover:bg-surface-alt"
             }`}
           >
             {tab.label}
@@ -48,30 +80,87 @@ export default function AdminProductReportsPage() {
         ))}
       </div>
 
-      {isLoading && <p className="text-sm text-foreground/60">Loading…</p>}
+      {isLoading && <p className="text-sm text-muted">Loading…</p>}
       {isError && <FormMessage type="error">{getErrorMessage(error)}</FormMessage>}
+      {bulkResolve.isError && <FormMessage type="error">{getErrorMessage(bulkResolve.error)}</FormMessage>}
+      {bulkDismiss.isError && <FormMessage type="error">{getErrorMessage(bulkDismiss.error)}</FormMessage>}
+
+      {status === "PENDING" && !!data?.reports.length && (
+        <>
+          <label className="flex items-center gap-2 text-sm text-body">
+            <input type="checkbox" checked={checked.size > 0 && checked.size === data.reports.length} onChange={toggleAll} />
+            Select all on this page
+          </label>
+          <AdminBulkBar
+            count={checked.size}
+            approveLabel="Resolve"
+            approvePending={bulkResolve.isPending}
+            onApprove={() => bulkResolve.mutate(Array.from(checked), { onSuccess: () => setChecked(new Set()) })}
+            rejectLabel="Dismiss"
+            rejectPending={bulkDismiss.isPending}
+            onReject={(resolutionNote) =>
+              bulkDismiss.mutate(
+                { ids: Array.from(checked), resolutionNote },
+                { onSuccess: () => setChecked(new Set()) }
+              )
+            }
+            onClear={() => setChecked(new Set())}
+          />
+        </>
+      )}
 
       <div className="flex flex-col gap-3">
         {data?.reports.map((report) => (
-          <Link
+          <div
             key={report.id}
-            href={`/admin/product-reports/${report.id}`}
-            className="flex items-center justify-between rounded-md border border-black/10 p-4 hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
+            className={`flex items-center gap-3 rounded-md border p-4 ${
+              selectedId === report.id ? "border-primary" : "border-border-admin"
+            }`}
           >
-            <div>
-              <p className="text-sm font-medium">{report.product.name}</p>
-              <p className="text-sm text-foreground/60">
-                {reportReasonLabels[report.reason as keyof typeof reportReasonLabels] ?? report.reason} · reported by{" "}
-                {report.reporter.firstName} {report.reporter.lastName}
-              </p>
-            </div>
-            <span className={`rounded px-2 py-1 text-xs font-medium ${statusBadgeClasses[report.status]}`}>
-              {report.status}
-            </span>
-          </Link>
+            {status === "PENDING" && (
+              <input
+                type="checkbox"
+                aria-label={`Select report on ${report.product.name}`}
+                checked={checked.has(report.id)}
+                onChange={() => toggleChecked(report.id)}
+                disabled={bulkPending}
+              />
+            )}
+            <button onClick={() => onSelect(report.id)} className="flex flex-1 items-center justify-between text-left">
+              <div>
+                <p className="text-sm font-medium text-heading">{report.product.name}</p>
+                <p className="text-sm text-muted">
+                  {reportReasonLabels[report.reason as keyof typeof reportReasonLabels] ?? report.reason} · reported by{" "}
+                  {report.reporter.firstName} {report.reporter.lastName}
+                </p>
+              </div>
+              <Badge variant={statusVariant[report.status]}>{report.status}</Badge>
+            </button>
+          </div>
         ))}
-        {data?.reports.length === 0 && <p className="text-sm text-foreground/60">No reports in this category.</p>}
+        {data?.reports.length === 0 && <p className="text-sm text-muted">No reports in this category.</p>}
       </div>
     </div>
+  );
+}
+
+function AdminProductReportsContent() {
+  const { selectedId, select, clear } = useAdminDetailSelection();
+
+  return (
+    <AdminMasterDetail
+      list={<ProductReportsList selectedId={selectedId} onSelect={select} />}
+      detail={selectedId ? <ProductReportDetail id={selectedId} /> : null}
+      detailKey={selectedId}
+      onCloseDetail={clear}
+    />
+  );
+}
+
+export default function AdminProductReportsPage() {
+  return (
+    <Suspense fallback={<p className="py-6 text-sm text-muted">Loading…</p>}>
+      <AdminProductReportsContent />
+    </Suspense>
   );
 }

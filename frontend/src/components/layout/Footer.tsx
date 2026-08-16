@@ -92,8 +92,21 @@ export function Footer() {
           <CheckCircleIcon className="h-4 w-4" />
           Vetted Sellers Marketplace
         </div>
+      </div>
 
-        <div className="mt-10 flex flex-col gap-4 border-t border-white/10 pt-6 text-xs text-white/50 sm:flex-row sm:items-center sm:justify-between">
+      {/* Full-bleed on purpose — sized off the viewport, not the max-w-6xl
+          content column above, so it reads as the closing brand moment
+          rather than another constrained content row. */}
+      <p
+        aria-hidden="true"
+        className="mt-10 select-none overflow-hidden whitespace-nowrap px-4 text-center text-[22vw] font-bold leading-none text-primary sm:text-[18vw]"
+        style={{ transform: "translateY(18%)" }}
+      >
+        Vendora
+      </p>
+
+      <div className="mx-auto max-w-6xl px-4 pb-8 sm:px-8">
+        <div className="flex flex-col gap-4 border-t border-white/10 pt-6 text-xs text-white/50 sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} Vendora. All rights reserved.</p>
           <p className="flex gap-4">
             <span>Terms &amp; Conditions</span>
@@ -101,14 +114,6 @@ export function Footer() {
           </p>
         </div>
       </div>
-
-      <p
-        aria-hidden="true"
-        className="select-none overflow-hidden whitespace-nowrap px-4 text-center text-[22vw] font-bold leading-none text-primary sm:text-[18vw]"
-        style={{ transform: "translateY(18%)" }}
-      >
-        Vendora
-      </p>
     </footer>
   );
 }

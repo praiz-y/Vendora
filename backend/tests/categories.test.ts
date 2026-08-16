@@ -54,6 +54,55 @@ describe("admin category management", () => {
     expect(res.body.data.category.status).toBe("ACTIVE");
   });
 
+  // Overhaul Phase 10: category actions previously recorded no AuditLog
+  // entry at all, unlike every other admin write action in this codebase —
+  // the Audit Log page's "Category" filter option is otherwise decorative.
+  it("records an audit log entry on create, update, archive, and activate", async () => {
+    const admin = await createUser({ role: "ADMIN" });
+    const token = tokenFor(admin);
+
+    const created = await request(app)
+      .post("/api/v1/admin/categories")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "Sportswear" });
+    const categoryId = created.body.data.category.id;
+
+    await request(app)
+      .patch(`/api/v1/admin/categories/${categoryId}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ description: "Updated description" });
+    await request(app)
+      .post(`/api/v1/admin/categories/${categoryId}/archive`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ reason: "Season ended, no longer stocked" });
+    await request(app).post(`/api/v1/admin/categories/${categoryId}/activate`).set("Authorization", `Bearer ${token}`);
+
+    const logs = await prisma.auditLog.findMany({ where: { entityType: "Category", entityId: categoryId }, orderBy: { createdAt: "asc" } });
+    expect(logs.map((l) => l.action)).toEqual(["CATEGORY_CREATED", "CATEGORY_UPDATED", "CATEGORY_ARCHIVED", "CATEGORY_ACTIVATED"]);
+    expect(logs.every((l) => l.actorId === admin.id)).toBe(true);
+    const archivedLog = logs.find((l) => l.action === "CATEGORY_ARCHIVED");
+    expect((archivedLog?.metadata as { reason?: string } | null)?.reason).toBe("Season ended, no longer stocked");
+  });
+
+  it("rejects an archive request with no reason, or one that's too short", async () => {
+    const admin = await createUser({ role: "ADMIN" });
+    const token = tokenFor(admin);
+    const created = await request(app)
+      .post("/api/v1/admin/categories")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "Discontinued" });
+    const id = created.body.data.category.id;
+
+    const noReason = await request(app).post(`/api/v1/admin/categories/${id}/archive`).set("Authorization", `Bearer ${token}`);
+    expect(noReason.status).toBe(422);
+
+    const shortReason = await request(app)
+      .post(`/api/v1/admin/categories/${id}/archive`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ reason: "hi" });
+    expect(shortReason.status).toBe(422);
+  });
+
   it("allows duplicate category names, generating a distinct slug for the second one", async () => {
     const admin = await createUser({ role: "ADMIN" });
     const token = tokenFor(admin);
@@ -102,7 +151,8 @@ describe("admin category management", () => {
 
     const archived = await request(app)
       .post(`/api/v1/admin/categories/${id}/archive`)
-      .set("Authorization", `Bearer ${token}`);
+      .set("Authorization", `Bearer ${token}`)
+      .send({ reason: "Out of season" });
     expect(archived.body.data.category.status).toBe("ARCHIVED");
 
     const archivedList = await request(app)
@@ -141,7 +191,8 @@ describe("GET /api/v1/categories", () => {
       .send({ name: "Archived Category" });
     await request(app)
       .post(`/api/v1/admin/categories/${toArchive.body.data.category.id}/archive`)
-      .set("Authorization", `Bearer ${adminToken}`);
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ reason: "No longer offered" });
 
     const buyer = await createUser();
     const res = await request(app).get("/api/v1/categories").set("Authorization", `Bearer ${tokenFor(buyer)}`);

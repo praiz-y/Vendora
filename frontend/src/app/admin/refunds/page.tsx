@@ -1,12 +1,16 @@
 "use client";
 
-import Link from "next/link";
-import { useState } from "react";
+import { Suspense } from "react";
+import { AdminMasterDetail } from "@/components/admin/AdminMasterDetail";
+import { Badge, type BadgeVariant } from "@/components/ui/Badge";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { useAdminRefunds } from "@/features/admin/refunds/hooks";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
 import { formatNaira } from "@/lib/currency";
+import { useAdminDetailSelection } from "@/lib/useAdminDetailSelection";
+import { useAdminUrlFilters } from "@/lib/useAdminUrlFilters";
 import type { RefundStatus } from "@/types/refund";
+import { RefundDetail } from "./_components/RefundDetail";
 
 const statusTabs: { label: string; value: RefundStatus | undefined }[] = [
   { label: "Requested", value: "REQUESTED" },
@@ -15,33 +19,32 @@ const statusTabs: { label: string; value: RefundStatus | undefined }[] = [
   { label: "All", value: undefined },
 ];
 
-const statusBadgeClasses: Record<RefundStatus, string> = {
-  REQUESTED: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  APPROVED: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-  PROCESSED: "bg-green-500/10 text-green-700 dark:text-green-400",
-  REJECTED: "bg-black/10 text-foreground/50 dark:bg-white/10",
+const statusVariant: Record<RefundStatus, BadgeVariant> = {
+  REQUESTED: "warning",
+  APPROVED: "info",
+  PROCESSED: "success",
+  REJECTED: "neutral",
 };
 
-export default function AdminRefundsPage() {
-  const [status, setStatus] = useState<RefundStatus | undefined>("REQUESTED");
+function RefundsList({ selectedId, onSelect }: { selectedId: string | null; onSelect: (id: string) => void }) {
+  const { get, set } = useAdminUrlFilters();
+  const status = (get("status", "REQUESTED") || undefined) as RefundStatus | undefined;
   const { data, isLoading, isError, error } = useAdminRefunds({ status });
 
   return (
-    <div className="flex flex-col gap-6 py-6">
+    <div className="flex flex-col gap-6">
       <div>
-        <h2 className="text-lg font-semibold">Refunds</h2>
-        <p className="mt-1 text-sm text-foreground/60">Review buyer refund requests and process approved ones.</p>
+        <h2 className="text-lg font-semibold text-heading">Refunds</h2>
+        <p className="mt-1 text-sm text-muted">Review buyer refund requests and process approved ones.</p>
       </div>
 
       <div className="flex gap-2">
         {statusTabs.map((tab) => (
           <button
             key={tab.label}
-            onClick={() => setStatus(tab.value)}
+            onClick={() => set({ status: tab.value })}
             className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-              status === tab.value
-                ? "bg-foreground text-background"
-                : "border border-black/15 text-foreground/70 hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
+              status === tab.value ? "bg-primary-hover text-white" : "border border-border-admin text-body transition-colors hover:bg-surface-alt"
             }`}
           >
             {tab.label}
@@ -49,29 +52,50 @@ export default function AdminRefundsPage() {
         ))}
       </div>
 
-      {isLoading && <p className="text-sm text-foreground/60">Loading…</p>}
+      {isLoading && <p className="text-sm text-muted">Loading…</p>}
       {isError && <FormMessage type="error">{getErrorMessage(error)}</FormMessage>}
 
       <div className="flex flex-col gap-3">
         {data?.refunds.map((refund) => (
-          <Link
+          <button
             key={refund.id}
-            href={`/admin/refunds/${refund.id}`}
-            className="flex items-center justify-between rounded-md border border-black/10 p-4 hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
+            onClick={() => onSelect(refund.id)}
+            className={`flex items-center justify-between rounded-md border p-4 text-left transition-colors hover:bg-surface-alt ${
+              selectedId === refund.id ? "border-primary" : "border-border-admin"
+            }`}
           >
             <div>
-              <p className="text-sm font-medium">{refund.sellerOrder.store.name}</p>
-              <p className="text-sm text-foreground/60">
+              <p className="text-sm font-medium text-heading">{refund.sellerOrder.store.name}</p>
+              <p className="text-sm text-muted">
                 {refund.requestedBy.firstName} {refund.requestedBy.lastName} · {formatNaira(refund.amount)}
               </p>
             </div>
-            <span className={`rounded px-2 py-1 text-xs font-medium ${statusBadgeClasses[refund.status]}`}>
-              {refund.status}
-            </span>
-          </Link>
+            <Badge variant={statusVariant[refund.status]}>{refund.status}</Badge>
+          </button>
         ))}
-        {data?.refunds.length === 0 && <p className="text-sm text-foreground/60">No refunds in this category.</p>}
+        {data?.refunds.length === 0 && <p className="text-sm text-muted">No refunds in this category.</p>}
       </div>
     </div>
+  );
+}
+
+function AdminRefundsContent() {
+  const { selectedId, select, clear } = useAdminDetailSelection();
+
+  return (
+    <AdminMasterDetail
+      list={<RefundsList selectedId={selectedId} onSelect={select} />}
+      detail={selectedId ? <RefundDetail id={selectedId} /> : null}
+      detailKey={selectedId}
+      onCloseDetail={clear}
+    />
+  );
+}
+
+export default function AdminRefundsPage() {
+  return (
+    <Suspense fallback={<p className="py-6 text-sm text-muted">Loading…</p>}>
+      <AdminRefundsContent />
+    </Suspense>
   );
 }

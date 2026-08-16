@@ -20,6 +20,7 @@ export const listProducts = asyncHandler(async (req: Request, res: Response) => 
     type: query.type,
     minPrice: query.minPrice,
     maxPrice: query.maxPrice,
+    minRating: query.minRating,
     sort: query.sort,
     page,
     limit,

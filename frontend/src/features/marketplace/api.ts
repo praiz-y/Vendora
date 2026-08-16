@@ -9,6 +9,7 @@ export interface ListMarketplaceProductsParams {
   type?: ProductType;
   minPrice?: number;
   maxPrice?: number;
+  minRating?: number;
   sort?: "newest" | "price_asc" | "price_desc" | "rating_desc" | "best_selling";
   page?: number;
   limit?: number;
@@ -22,6 +23,7 @@ function buildQueryString(params: ListMarketplaceProductsParams): string {
   if (params.type) query.set("type", params.type);
   if (params.minPrice !== undefined) query.set("minPrice", String(params.minPrice));
   if (params.maxPrice !== undefined) query.set("maxPrice", String(params.maxPrice));
+  if (params.minRating !== undefined) query.set("minRating", String(params.minRating));
   if (params.sort) query.set("sort", params.sort);
   if (params.page) query.set("page", String(params.page));
   if (params.limit) query.set("limit", String(params.limit));

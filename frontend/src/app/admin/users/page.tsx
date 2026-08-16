@@ -1,11 +1,16 @@
 "use client";
 
-import Link from "next/link";
-import { useState } from "react";
+import { Suspense, useEffect, useState } from "react";
+import { AdminMasterDetail } from "@/components/admin/AdminMasterDetail";
+import { AdminPagination } from "@/components/admin/AdminPagination";
+import { Badge, type BadgeVariant } from "@/components/ui/Badge";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { useAdminUsers } from "@/features/admin/users/hooks";
 import { getErrorMessage } from "@/lib/api/getErrorMessage";
+import { useAdminDetailSelection } from "@/lib/useAdminDetailSelection";
+import { useAdminUrlFilters } from "@/lib/useAdminUrlFilters";
 import type { UserStatus } from "@/types/user";
+import { UserDetail } from "./_components/UserDetail";
 
 const statusTabs: { label: string; value: UserStatus | undefined }[] = [
   { label: "All", value: undefined },
@@ -13,16 +18,40 @@ const statusTabs: { label: string; value: UserStatus | undefined }[] = [
   { label: "Suspended", value: "SUSPENDED" },
 ];
 
-export default function AdminUsersPage() {
-  const [status, setStatus] = useState<UserStatus | undefined>(undefined);
-  const [search, setSearch] = useState("");
-  const { data, isLoading, isError, error } = useAdminUsers({ status, search: search || undefined });
+const statusVariant: Record<UserStatus, BadgeVariant> = {
+  ACTIVE: "success",
+  SUSPENDED: "error",
+};
+
+function UsersList({ selectedId, onSelect }: { selectedId: string | null; onSelect: (id: string) => void }) {
+  const { get, set } = useAdminUrlFilters();
+  const status = (get("status") || undefined) as UserStatus | undefined;
+  const page = Number(get("page", "1"));
+  const urlSearch = get("search", "") ?? "";
+  const [search, setSearch] = useState(urlSearch);
+  const { data, isLoading, isError, error } = useAdminUsers({ status, search: search || undefined, page, limit: 20 });
+
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (search !== urlSearch) set({ search: search || undefined, page: undefined });
+    }, 400);
+    return () => clearTimeout(timeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
+
+  function handleStatusChange(next: UserStatus | undefined) {
+    set({ status: next, page: undefined });
+  }
+
+  function handlePageChange(next: number) {
+    set({ page: String(next) });
+  }
 
   return (
-    <div className="flex flex-col gap-6 py-6">
+    <div className="flex flex-col gap-6">
       <div>
-        <h2 className="text-lg font-semibold">Users</h2>
-        <p className="mt-1 text-sm text-foreground/60">View accounts and manage account/store status.</p>
+        <h2 className="text-lg font-semibold text-heading">Users</h2>
+        <p className="mt-1 text-sm text-muted">View accounts and manage account/store status.</p>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
@@ -30,11 +59,9 @@ export default function AdminUsersPage() {
           {statusTabs.map((tab) => (
             <button
               key={tab.label}
-              onClick={() => setStatus(tab.value)}
+              onClick={() => handleStatusChange(tab.value)}
               className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-                status === tab.value
-                  ? "bg-foreground text-background"
-                  : "border border-black/15 text-foreground/70 hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
+                status === tab.value ? "bg-primary-hover text-white" : "border border-border-admin text-body transition-colors hover:bg-surface-alt"
               }`}
             >
               {tab.label}
@@ -47,42 +74,60 @@ export default function AdminUsersPage() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search name, username, or email…"
-          className="min-w-[220px] rounded-md border border-black/15 bg-transparent px-3 py-1.5 text-sm outline-none focus:ring-2 focus:ring-black/20 dark:border-white/20 dark:focus:ring-white/30"
+          className="min-w-55 rounded-md border border-border-admin bg-transparent px-3 py-1.5 text-sm text-body outline-none focus:ring-2 focus:ring-primary/30"
         />
       </div>
 
-      {isLoading && <p className="text-sm text-foreground/60">Loading…</p>}
+      {isLoading && <p className="text-sm text-muted">Loading…</p>}
       {isError && <FormMessage type="error">{getErrorMessage(error)}</FormMessage>}
 
       <div className="flex flex-col gap-3">
         {data?.users.map((user) => (
-          <Link
+          <button
             key={user.id}
-            href={`/admin/users/${user.id}`}
-            className="flex items-center justify-between rounded-md border border-black/10 p-4 hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
+            onClick={() => onSelect(user.id)}
+            className={`flex items-center justify-between rounded-md border p-4 text-left transition-colors hover:bg-surface-alt ${
+              selectedId === user.id ? "border-primary" : "border-border-admin"
+            }`}
           >
             <div>
-              <p className="text-sm font-medium">
-                {user.firstName} {user.lastName} <span className="text-foreground/50">@{user.username}</span>
+              <p className="text-sm font-medium text-heading">
+                {user.firstName} {user.lastName} <span className="text-muted">@{user.username}</span>
               </p>
-              <p className="text-sm text-foreground/60">
+              <p className="text-sm text-muted">
                 {user.email} · {user.role}
                 {user.seller && ` · seller (${user.seller.status})`}
+                {user.seller?.isFeatured && " · featured"}
               </p>
             </div>
-            <span
-              className={`rounded px-2 py-1 text-xs font-medium ${
-                user.status === "ACTIVE"
-                  ? "bg-green-500/10 text-green-700 dark:text-green-400"
-                  : "bg-red-500/10 text-red-600 dark:text-red-400"
-              }`}
-            >
-              {user.status}
-            </span>
-          </Link>
+            <Badge variant={statusVariant[user.status]}>{user.status}</Badge>
+          </button>
         ))}
-        {data?.users.length === 0 && <p className="text-sm text-foreground/60">No users match this filter.</p>}
+        {data?.users.length === 0 && <p className="text-sm text-muted">No users match this filter.</p>}
       </div>
+
+      <AdminPagination meta={data?.meta} page={page} onPageChange={handlePageChange} />
     </div>
+  );
+}
+
+function AdminUsersContent() {
+  const { selectedId, select, clear } = useAdminDetailSelection();
+
+  return (
+    <AdminMasterDetail
+      list={<UsersList selectedId={selectedId} onSelect={select} />}
+      detail={selectedId ? <UserDetail id={selectedId} /> : null}
+      detailKey={selectedId}
+      onCloseDetail={clear}
+    />
+  );
+}
+
+export default function AdminUsersPage() {
+  return (
+    <Suspense fallback={<p className="py-6 text-sm text-muted">Loading…</p>}>
+      <AdminUsersContent />
+    </Suspense>
   );
 }

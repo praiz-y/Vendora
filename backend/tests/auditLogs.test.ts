@@ -102,4 +102,15 @@ describe("GET /api/v1/admin/audit-logs", () => {
     expect(res.body.data.logs.length).toBeGreaterThan(0);
     expect(res.body.data.logs.every((l: { action: string }) => l.action === "SELLER_APPLICATION_REJECTED")).toBe(true);
   });
+
+  // Overhaul Phase 10: entityType is now a closed enum (the frontend's
+  // free-text box became a dropdown of the real known values) — enforced
+  // server-side too, not just cosmetically on the client.
+  it("rejects an entityType outside the known set", async () => {
+    const admin = await createUser({ role: "ADMIN" });
+    const res = await request(app)
+      .get("/api/v1/admin/audit-logs?entityType=NotARealEntity")
+      .set("Authorization", `Bearer ${tokenFor(admin)}`);
+    expect(res.status).toBe(422);
+  });
 });

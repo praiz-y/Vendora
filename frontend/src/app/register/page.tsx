@@ -1,113 +1,31 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState, type FormEvent } from "react";
-import { Button } from "@/components/ui/Button";
-import { FormMessage } from "@/components/ui/FormMessage";
-import { TextField } from "@/components/ui/TextField";
-import { PasswordField } from "@/components/ui/PasswordField";
-import { useRegister } from "@/features/auth/hooks";
-import { getErrorMessage } from "@/lib/api/getErrorMessage";
-import { resolveRedirectTarget } from "@/lib/redirectTarget";
+import { Suspense, useEffect } from "react";
 
-function RegisterForm() {
+// /register now just hands off to the single toggling card on /login
+// (Overhaul Phase 15) — kept as a real redirect (not deleted) so existing
+// links/bookmarks to /register still work. Forwards `from` if present so a
+// guest redirected here mid-checkout still lands back where they were
+// after signing up.
+function RegisterRedirect() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const register = useRegister();
-  const [form, setForm] = useState({
-    firstName: "",
-    lastName: "",
-    username: "",
-    email: "",
-    password: "",
-  });
 
-  function handleChange(field: keyof typeof form) {
-    return (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [field]: e.target.value }));
-  }
+  useEffect(() => {
+    const from = searchParams.get("from");
+    const qs = new URLSearchParams({ mode: "register" });
+    if (from) qs.set("from", from);
+    router.replace(`/login?${qs.toString()}`);
+  }, [router, searchParams]);
 
-  function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    const redirectTo = resolveRedirectTarget(searchParams.get("from"));
-    register.mutate(form, { onSuccess: () => router.push(redirectTo) });
-  }
-
-  return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-6 px-4 py-12">
-      <div>
-        <h1 className="text-xl font-semibold">Create your Vendora account</h1>
-        <p className="mt-1 text-sm text-foreground/60">Every account starts as a buyer.</p>
-      </div>
-
-      <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-        <div className="grid grid-cols-2 gap-3">
-          <TextField
-            label="First name"
-            name="firstName"
-            autoComplete="given-name"
-            required
-            value={form.firstName}
-            onChange={handleChange("firstName")}
-          />
-          <TextField
-            label="Last name"
-            name="lastName"
-            autoComplete="family-name"
-            required
-            value={form.lastName}
-            onChange={handleChange("lastName")}
-          />
-        </div>
-        <TextField
-          label="Username"
-          name="username"
-          autoComplete="username"
-          required
-          minLength={3}
-          value={form.username}
-          onChange={handleChange("username")}
-        />
-        <TextField
-          label="Email"
-          name="email"
-          type="email"
-          autoComplete="email"
-          required
-          value={form.email}
-          onChange={handleChange("email")}
-        />
-        <PasswordField
-          label="Password"
-          name="password"
-          autoComplete="new-password"
-          required
-          minLength={8}
-          value={form.password}
-          onChange={handleChange("password")}
-        />
-
-        {register.isError && <FormMessage type="error">{getErrorMessage(register.error)}</FormMessage>}
-
-        <Button type="submit" loading={register.isPending}>
-          Create account
-        </Button>
-      </form>
-
-      <p className="text-center text-sm text-foreground/60">
-        Already have an account?{" "}
-        <Link href="/login" className="font-medium text-foreground underline">
-          Log in
-        </Link>
-      </p>
-    </main>
-  );
+  return null;
 }
 
 export default function RegisterPage() {
   return (
     <Suspense fallback={null}>
-      <RegisterForm />
+      <RegisterRedirect />
     </Suspense>
   );
 }

@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { Suspense, useState, type FormEvent } from "react";
+import { Badge, type BadgeVariant } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { TextField } from "@/components/ui/TextField";
 import { Textarea } from "@/components/ui/Textarea";
+import { useAdminUrlFilters } from "@/lib/useAdminUrlFilters";
 import {
   useActivateCategory,
   useAdminCategories,
@@ -21,6 +23,11 @@ const statusTabs: { label: string; value: CategoryStatus | undefined }[] = [
   { label: "All", value: undefined },
 ];
 
+const statusVariant: Record<CategoryStatus, BadgeVariant> = {
+  ACTIVE: "success",
+  ARCHIVED: "neutral",
+};
+
 function NewCategoryForm() {
   const createCategory = useCreateCategory();
   const [name, setName] = useState("");
@@ -35,8 +42,8 @@ function NewCategoryForm() {
   }
 
   return (
-    <form className="flex max-w-md flex-col gap-3 rounded-md border border-black/10 p-4 dark:border-white/10" onSubmit={handleSubmit}>
-      <p className="text-sm font-medium">New category</p>
+    <form className="flex max-w-md flex-col gap-3 rounded-md border border-border-admin p-4" onSubmit={handleSubmit}>
+      <p className="text-sm font-medium text-heading">New category</p>
       <TextField label="Name" name="name" required value={name} onChange={(e) => setName(e.target.value)} />
       <Textarea
         label="Description (optional)"
@@ -46,7 +53,7 @@ function NewCategoryForm() {
         onChange={(e) => setDescription(e.target.value)}
       />
       {createCategory.isError && <FormMessage type="error">{getErrorMessage(createCategory.error)}</FormMessage>}
-      <Button type="submit" loading={createCategory.isPending} className="self-start">
+      <Button type="submit" variant="brand" loading={createCategory.isPending} className="self-start">
         Create category
       </Button>
     </form>
@@ -60,6 +67,8 @@ function CategoryRow({ category }: { category: Category }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(category.name);
   const [description, setDescription] = useState(category.description ?? "");
+  const [showArchiveForm, setShowArchiveForm] = useState(false);
+  const [archiveReason, setArchiveReason] = useState("");
 
   function handleSave(e: FormEvent) {
     e.preventDefault();
@@ -69,15 +78,23 @@ function CategoryRow({ category }: { category: Category }) {
     );
   }
 
+  function handleArchive(e: FormEvent) {
+    e.preventDefault();
+    archiveCategory.mutate(
+      { id: category.id, reason: archiveReason },
+      { onSuccess: () => setShowArchiveForm(false) }
+    );
+  }
+
   return (
-    <div className="rounded-md border border-black/10 p-4 dark:border-white/10">
+    <div className="rounded-md border border-border-admin p-4">
       {editing ? (
         <form className="flex flex-col gap-3" onSubmit={handleSave}>
           <TextField label="Name" name="name" required value={name} onChange={(e) => setName(e.target.value)} />
           <Textarea label="Description" name="description" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
           {updateCategory.isError && <FormMessage type="error">{getErrorMessage(updateCategory.error)}</FormMessage>}
           <div className="flex gap-2">
-            <Button type="submit" loading={updateCategory.isPending}>
+            <Button type="submit" variant="brand" loading={updateCategory.isPending}>
               Save
             </Button>
             <Button type="button" variant="secondary" onClick={() => setEditing(false)}>
@@ -86,41 +103,64 @@ function CategoryRow({ category }: { category: Category }) {
           </div>
         </form>
       ) : (
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-sm font-medium">{category.name}</p>
-            <p className="text-xs text-foreground/50">/{category.slug}</p>
-            {category.description && <p className="mt-1 text-sm text-foreground/70">{category.description}</p>}
-          </div>
-          <div className="flex shrink-0 gap-2">
-            <Button variant="secondary" onClick={() => setEditing(true)}>
-              Edit
-            </Button>
-            {category.status === "ACTIVE" ? (
-              <Button variant="danger" onClick={() => archiveCategory.mutate(category.id)} loading={archiveCategory.isPending}>
-                Archive
+        <div className="flex flex-col gap-3">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-sm font-medium text-heading">{category.name}</p>
+                <Badge variant={statusVariant[category.status]}>{category.status}</Badge>
+              </div>
+              <p className="text-xs text-muted">/{category.slug}</p>
+              {category.description && <p className="mt-1 text-sm text-body">{category.description}</p>}
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <Button variant="secondary" onClick={() => setEditing(true)}>
+                Edit
               </Button>
-            ) : (
-              <Button variant="secondary" onClick={() => activateCategory.mutate(category.id)} loading={activateCategory.isPending}>
-                Activate
-              </Button>
-            )}
+              {category.status === "ACTIVE" ? (
+                <Button variant="danger" onClick={() => setShowArchiveForm((v) => !v)}>
+                  Archive
+                </Button>
+              ) : (
+                <Button variant="secondary" onClick={() => activateCategory.mutate(category.id)} loading={activateCategory.isPending}>
+                  Activate
+                </Button>
+              )}
+            </div>
           </div>
+
+          {showArchiveForm && (
+            <form className="flex max-w-lg flex-col gap-3" onSubmit={handleArchive}>
+              <Textarea
+                label="Archive reason"
+                name="archiveReason"
+                required
+                minLength={3}
+                value={archiveReason}
+                onChange={(e) => setArchiveReason(e.target.value)}
+              />
+              {archiveCategory.isError && <FormMessage type="error">{getErrorMessage(archiveCategory.error)}</FormMessage>}
+              <Button type="submit" variant="danger" loading={archiveCategory.isPending} className="self-start">
+                Confirm archive
+              </Button>
+            </form>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-export default function AdminCategoriesPage() {
-  const [status, setStatus] = useState<CategoryStatus | undefined>("ACTIVE");
+function AdminCategoriesContent() {
+  const { get, set } = useAdminUrlFilters();
+  const status = (get("status", "ACTIVE") || undefined) as CategoryStatus | undefined;
   const { data, isLoading, isError, error } = useAdminCategories({ status });
 
   return (
     <div className="flex flex-col gap-6 py-6">
       <div>
-        <h2 className="text-lg font-semibold">Categories</h2>
-        <p className="mt-1 text-sm text-foreground/60">Sellers can only choose from categories you manage here.</p>
+        <h2 className="text-lg font-semibold text-heading">Categories</h2>
+        <p className="mt-1 text-sm text-muted">Sellers can only choose from categories you manage here.</p>
       </div>
 
       <NewCategoryForm />
@@ -129,11 +169,9 @@ export default function AdminCategoriesPage() {
         {statusTabs.map((tab) => (
           <button
             key={tab.label}
-            onClick={() => setStatus(tab.value)}
+            onClick={() => set({ status: tab.value })}
             className={`rounded-md px-3 py-1.5 text-sm font-medium ${
-              status === tab.value
-                ? "bg-foreground text-background"
-                : "border border-black/15 text-foreground/70 hover:bg-black/5 dark:border-white/20 dark:hover:bg-white/10"
+              status === tab.value ? "bg-primary-hover text-white" : "border border-border-admin text-body transition-colors hover:bg-surface-alt"
             }`}
           >
             {tab.label}
@@ -141,15 +179,23 @@ export default function AdminCategoriesPage() {
         ))}
       </div>
 
-      {isLoading && <p className="text-sm text-foreground/60">Loading…</p>}
+      {isLoading && <p className="text-sm text-muted">Loading…</p>}
       {isError && <FormMessage type="error">{getErrorMessage(error)}</FormMessage>}
 
       <div className="flex flex-col gap-3">
         {data?.categories.map((category) => (
           <CategoryRow key={category.id} category={category} />
         ))}
-        {data?.categories.length === 0 && <p className="text-sm text-foreground/60">No categories in this view.</p>}
+        {data?.categories.length === 0 && <p className="text-sm text-muted">No categories in this view.</p>}
       </div>
     </div>
+  );
+}
+
+export default function AdminCategoriesPage() {
+  return (
+    <Suspense fallback={<p className="py-6 text-sm text-muted">Loading…</p>}>
+      <AdminCategoriesContent />
+    </Suspense>
   );
 }

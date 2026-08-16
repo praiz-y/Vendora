@@ -88,6 +88,7 @@ export interface ListPublicProductsParams extends PaginationParams {
   type?: ListPublicProductsQuery["type"];
   minPrice?: number;
   maxPrice?: number;
+  minRating?: number;
   sort?: ListPublicProductsQuery["sort"];
 }
 
@@ -127,42 +128,53 @@ function resolveOrderBy(sort: ListPublicProductsParams["sort"]): Prisma.ProductO
 
 // `rating_desc` and `best_selling` aren't columns on Product — both are
 // computed from other tables (Review, OrderItem), so neither can be a
-// Prisma `orderBy` the database can apply before paginating. Instead: pull
-// every id the filters match (this marketplace's scale makes that cheap),
-// rank/filter them in application code, then paginate that ranked list and
-// fetch full product rows for just the requested page.
-async function listPublicProductsByComputedSort(
+// Prisma `orderBy` the database can apply before paginating. `minRating`
+// (Overhaul Phase 15's Products page sidebar) has the same problem: it's a
+// filter on that same computed value, not a plain column, so it needs this
+// same path even under a sort that would otherwise be a plain Prisma
+// `orderBy`. Instead: pull every id the filters match (this marketplace's
+// scale makes that cheap), rank/filter them in application code, then
+// paginate that ranked list and fetch full product rows for just the
+// requested page.
+async function listPublicProductsByComputedPath(
   params: ListPublicProductsParams,
-  where: Prisma.ProductWhereInput,
-  sort: "rating_desc" | "best_selling"
+  where: Prisma.ProductWhereInput
 ): Promise<{ products: PublicProductRow[]; total: number }> {
-  const candidates = await prisma.product.findMany({ where, select: { id: true, createdAt: true } });
+  const candidates = await prisma.product.findMany({
+    where,
+    select: { id: true, createdAt: true, price: true },
+  });
   const candidateIds = candidates.map((c) => c.id);
+  const ratings = await getProductRatingSummaries(candidateIds);
 
-  let rankedIds: string[];
+  let ranked = params.minRating
+    ? candidates.filter((c) => (ratings.get(c.id)?.averageRating ?? 0) >= params.minRating!)
+    : candidates;
 
-  if (sort === "rating_desc") {
-    const ratings = await getProductRatingSummaries(candidateIds);
-    rankedIds = candidates
-      .map((c) => ({ ...c, rating: ratings.get(c.id)! }))
-      .filter((c) => c.rating.averageRating !== null && c.rating.averageRating >= TOP_RATED_MIN_RATING)
-      .filter((c) => c.rating.reviewCount >= TOP_RATED_MIN_REVIEWS)
+  if (params.sort === "rating_desc") {
+    ranked = ranked
+      .filter((c) => ratings.get(c.id)!.averageRating !== null && ratings.get(c.id)!.averageRating! >= TOP_RATED_MIN_RATING)
+      .filter((c) => ratings.get(c.id)!.reviewCount >= TOP_RATED_MIN_REVIEWS)
       .sort(
         (a, b) =>
-          b.rating.averageRating! - a.rating.averageRating! ||
-          b.rating.reviewCount - a.rating.reviewCount ||
+          ratings.get(b.id)!.averageRating! - ratings.get(a.id)!.averageRating! ||
+          ratings.get(b.id)!.reviewCount - ratings.get(a.id)!.reviewCount ||
           b.createdAt.getTime() - a.createdAt.getTime()
-      )
-      .map((c) => c.id);
+      );
+  } else if (params.sort === "best_selling") {
+    const volumes = await getRecentOrderVolumeByProduct(ranked.map((c) => c.id));
+    ranked = ranked
+      .filter((c) => (volumes.get(c.id) ?? 0) > 0)
+      .sort((a, b) => (volumes.get(b.id) ?? 0) - (volumes.get(a.id) ?? 0) || b.createdAt.getTime() - a.createdAt.getTime());
+  } else if (params.sort === "price_asc") {
+    ranked = ranked.sort((a, b) => Number(a.price) - Number(b.price));
+  } else if (params.sort === "price_desc") {
+    ranked = ranked.sort((a, b) => Number(b.price) - Number(a.price));
   } else {
-    const volumes = await getRecentOrderVolumeByProduct(candidateIds);
-    rankedIds = candidates
-      .map((c) => ({ ...c, volume: volumes.get(c.id) ?? 0 }))
-      .filter((c) => c.volume > 0)
-      .sort((a, b) => b.volume - a.volume || b.createdAt.getTime() - a.createdAt.getTime())
-      .map((c) => c.id);
+    ranked = ranked.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   }
 
+  const rankedIds = ranked.map((c) => c.id);
   const total = rankedIds.length;
   const { skip, take } = toSkipTake(params);
   const pageIds = rankedIds.slice(skip, skip + take);
@@ -180,8 +192,8 @@ export async function listPublicProducts(params: ListPublicProductsParams) {
   let products: PublicProductRow[];
   let total: number;
 
-  if (params.sort === "rating_desc" || params.sort === "best_selling") {
-    ({ products, total } = await listPublicProductsByComputedSort(params, where, params.sort));
+  if (params.minRating || params.sort === "rating_desc" || params.sort === "best_selling") {
+    ({ products, total } = await listPublicProductsByComputedPath(params, where));
   } else {
     [products, total] = await Promise.all([
       prisma.product.findMany({

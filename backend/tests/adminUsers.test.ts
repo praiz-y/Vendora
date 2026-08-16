@@ -80,13 +80,14 @@ describe("GET /api/v1/admin/users", () => {
     expect(res.body.data.users[0].passwordHash).toBeUndefined();
   });
 
-  it("includes the caller's seller/store info when present", async () => {
+  it("includes the caller's seller/store info, including isFeatured, when present", async () => {
     const admin = await createUser({ role: "ADMIN" });
     const { seller, store } = await createActiveSeller();
 
     const res = await request(app).get(`/api/v1/admin/users/${seller.id}`).set("Authorization", `Bearer ${tokenFor(admin)}`);
     expect(res.status).toBe(200);
     expect(res.body.data.user.seller.storeId).toBe(store.id);
+    expect(res.body.data.user.seller.isFeatured).toBe(false);
   });
 });
 
@@ -105,16 +106,21 @@ describe("POST /api/v1/admin/users/:id/suspend and /reactivate", () => {
 
     const res = await request(app)
       .post(`/api/v1/admin/users/${target.id}/suspend`)
-      .set("Authorization", `Bearer ${tokenFor(admin)}`);
+      .set("Authorization", `Bearer ${tokenFor(admin)}`)
+      .send({ reason: "Repeated policy violations." });
     expect(res.status).toBe(200);
     expect(res.body.data.user.status).toBe("SUSPENDED");
 
     const updatedToken = await prisma.refreshToken.findUniqueOrThrow({ where: { id: refreshToken.id } });
     expect(updatedToken.revokedAt).not.toBeNull();
 
+    const log = await prisma.auditLog.findFirstOrThrow({ where: { action: "USER_SUSPENDED", entityId: target.id } });
+    expect((log.metadata as { reason: string }).reason).toBe("Repeated policy violations.");
+
     const again = await request(app)
       .post(`/api/v1/admin/users/${target.id}/suspend`)
-      .set("Authorization", `Bearer ${tokenFor(admin)}`);
+      .set("Authorization", `Bearer ${tokenFor(admin)}`)
+      .send({ reason: "Repeated policy violations." });
     expect(again.status).toBe(409);
     expect(again.body.error.code).toBe("USER_ALREADY_SUSPENDED");
 
@@ -125,13 +131,31 @@ describe("POST /api/v1/admin/users/:id/suspend and /reactivate", () => {
     expect(reactivateRes.body.data.user.status).toBe("ACTIVE");
   });
 
+  // Overhaul Phase 10: suspend now requires the same friction level every
+  // other reject-style admin action already had.
+  it("rejects a suspend request with no reason, or one that's too short", async () => {
+    const admin = await createUser({ role: "ADMIN" });
+    const target = await createUser();
+    const token = tokenFor(admin);
+
+    const missing = await request(app).post(`/api/v1/admin/users/${target.id}/suspend`).set("Authorization", `Bearer ${token}`).send({});
+    expect(missing.status).toBe(422);
+
+    const tooShort = await request(app)
+      .post(`/api/v1/admin/users/${target.id}/suspend`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ reason: "hi" });
+    expect(tooShort.status).toBe(422);
+  });
+
   it("refuses to suspend an admin account", async () => {
     const admin = await createUser({ role: "ADMIN" });
     const otherAdmin = await createUser({ role: "ADMIN" });
 
     const res = await request(app)
       .post(`/api/v1/admin/users/${otherAdmin.id}/suspend`)
-      .set("Authorization", `Bearer ${tokenFor(admin)}`);
+      .set("Authorization", `Bearer ${tokenFor(admin)}`)
+      .send({ reason: "Testing suspend on an admin account." });
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe("CANNOT_SUSPEND_ADMIN");
   });
@@ -145,7 +169,8 @@ describe("POST /api/v1/admin/users/:id/store/suspend and /reactivate", () => {
 
     const suspendRes = await request(app)
       .post(`/api/v1/admin/users/${seller.id}/store/suspend`)
-      .set("Authorization", `Bearer ${adminToken}`);
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ reason: "Store violated marketplace policy." });
     expect(suspendRes.status).toBe(200);
     expect(suspendRes.body.data.user.seller.status).toBe("SUSPENDED");
     // The account itself is untouched — the seller can still log in and buy.
@@ -154,9 +179,13 @@ describe("POST /api/v1/admin/users/:id/store/suspend and /reactivate", () => {
     const storeRow = await prisma.store.findUniqueOrThrow({ where: { id: store.id } });
     expect(storeRow.status).toBe("SUSPENDED");
 
+    const log = await prisma.auditLog.findFirstOrThrow({ where: { action: "STORE_SUSPENDED", entityId: store.id } });
+    expect((log.metadata as { reason: string }).reason).toBe("Store violated marketplace policy.");
+
     const again = await request(app)
       .post(`/api/v1/admin/users/${seller.id}/store/suspend`)
-      .set("Authorization", `Bearer ${adminToken}`);
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ reason: "Store violated marketplace policy." });
     expect(again.status).toBe(409);
     expect(again.body.error.code).toBe("STORE_ALREADY_SUSPENDED");
 
@@ -167,14 +196,64 @@ describe("POST /api/v1/admin/users/:id/store/suspend and /reactivate", () => {
     expect(reactivateRes.body.data.user.seller.status).toBe("ACTIVE");
   });
 
+  it("rejects a store suspend request with no reason", async () => {
+    const admin = await createUser({ role: "ADMIN" });
+    const { seller } = await createActiveSeller();
+
+    const res = await request(app)
+      .post(`/api/v1/admin/users/${seller.id}/store/suspend`)
+      .set("Authorization", `Bearer ${tokenFor(admin)}`)
+      .send({});
+    expect(res.status).toBe(422);
+  });
+
   it("404s a store action on a user with no store", async () => {
     const admin = await createUser({ role: "ADMIN" });
     const buyer = await createUser();
 
     const res = await request(app)
       .post(`/api/v1/admin/users/${buyer.id}/store/suspend`)
-      .set("Authorization", `Bearer ${tokenFor(admin)}`);
+      .set("Authorization", `Bearer ${tokenFor(admin)}`)
+      .send({ reason: "Testing a store action with no store." });
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe("STORE_NOT_FOUND");
+  });
+});
+
+describe("POST /api/v1/admin/users/:id/store/feature and /unfeature", () => {
+  it("features and unfeatures a store", async () => {
+    const admin = await createUser({ role: "ADMIN" });
+    const { seller, store } = await createActiveSeller();
+    const token = tokenFor(admin);
+
+    const featureRes = await request(app).post(`/api/v1/admin/users/${seller.id}/store/feature`).set("Authorization", `Bearer ${token}`);
+    expect(featureRes.status).toBe(200);
+    expect(featureRes.body.data.user.seller.isFeatured).toBe(true);
+
+    const storeRow = await prisma.store.findUniqueOrThrow({ where: { id: store.id } });
+    expect(storeRow.isFeatured).toBe(true);
+
+    const again = await request(app).post(`/api/v1/admin/users/${seller.id}/store/feature`).set("Authorization", `Bearer ${token}`);
+    expect(again.status).toBe(409);
+    expect(again.body.error.code).toBe("STORE_ALREADY_FEATURED");
+
+    const unfeatureRes = await request(app).post(`/api/v1/admin/users/${seller.id}/store/unfeature`).set("Authorization", `Bearer ${token}`);
+    expect(unfeatureRes.status).toBe(200);
+    expect(unfeatureRes.body.data.user.seller.isFeatured).toBe(false);
+  });
+
+  it("404s featuring a store on a user with no store", async () => {
+    const admin = await createUser({ role: "ADMIN" });
+    const buyer = await createUser();
+
+    const res = await request(app).post(`/api/v1/admin/users/${buyer.id}/store/feature`).set("Authorization", `Bearer ${tokenFor(admin)}`);
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe("STORE_NOT_FOUND");
+  });
+
+  it("blocks non-admins", async () => {
+    const { seller } = await createActiveSeller();
+    const res = await request(app).post(`/api/v1/admin/users/${seller.id}/store/feature`).set("Authorization", `Bearer ${tokenFor(seller)}`);
+    expect(res.status).toBe(403);
   });
 });

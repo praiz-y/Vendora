@@ -29,6 +29,7 @@ export const adminCategoriesApi = {
   create: (input: CreateCategoryInput) => apiClient.post<{ category: Category }>("/api/v1/admin/categories", input),
   update: (id: string, input: UpdateCategoryInput) =>
     apiClient.patch<{ category: Category }>(`/api/v1/admin/categories/${id}`, input),
-  archive: (id: string) => apiClient.post<{ category: Category }>(`/api/v1/admin/categories/${id}/archive`),
+  archive: (id: string, reason: string) =>
+    apiClient.post<{ category: Category }>(`/api/v1/admin/categories/${id}/archive`, { reason }),
   activate: (id: string) => apiClient.post<{ category: Category }>(`/api/v1/admin/categories/${id}/activate`),
 };

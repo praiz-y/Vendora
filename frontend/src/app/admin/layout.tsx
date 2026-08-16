@@ -1,34 +1,21 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useState } from "react";
+import { AdminMobileNav } from "@/components/admin/AdminMobileNav";
+import { AdminSidebar } from "@/components/admin/AdminSidebar";
+import { AdminTopBar } from "@/components/admin/AdminTopBar";
 import { useRequireAdmin } from "@/features/auth/useRequireAdmin";
-
-// The Admin Foundation shell (docs/roadmap.md Phase 3): one gated layout +
-// nav that every later admin-touching phase (product moderation, reports,
-// refunds, ...) adds a screen onto, instead of building its own one-off
-// admin tooling.
-const navItems = [
-  { href: "/admin", label: "Overview" },
-  { href: "/admin/seller-applications", label: "Seller Applications" },
-  { href: "/admin/products", label: "Products" },
-  { href: "/admin/categories", label: "Categories" },
-  { href: "/admin/product-reports", label: "Product Reports" },
-  { href: "/admin/refunds", label: "Refunds" },
-  { href: "/admin/users", label: "Users" },
-  { href: "/admin/audit-logs", label: "Audit Log" },
-];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const gate = useRequireAdmin();
-  const pathname = usePathname();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   if (gate !== "authorized") {
     return (
       <>
         <meta name="robots" content="noindex, nofollow" />
         <main className="flex min-h-screen items-center justify-center">
-          <p className="text-sm text-foreground/60">Loading…</p>
+          <p className="text-sm text-muted">Loading…</p>
         </main>
       </>
     );
@@ -36,28 +23,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <>
-    <meta name="robots" content="noindex, nofollow" />
-    <div className="mx-auto flex min-h-screen max-w-4xl flex-col gap-6 px-4 py-10">
-      <h1 className="text-xl font-semibold">Admin</h1>
-
-      <nav className="flex flex-wrap gap-4 border-b border-black/10 dark:border-white/10">
-        {navItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`border-b-2 px-1 pb-2 text-sm font-medium ${
-              (item.href === "/admin" ? pathname === "/admin" : pathname.startsWith(item.href))
-                ? "border-foreground text-foreground"
-                : "border-transparent text-foreground/50 hover:text-foreground"
-            }`}
-          >
-            {item.label}
-          </Link>
-        ))}
-      </nav>
-
-      {children}
-    </div>
+      <meta name="robots" content="noindex, nofollow" />
+      <AdminMobileNav open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+      <div className="flex min-h-screen" inert={mobileNavOpen}>
+        <AdminSidebar />
+        <div className="flex flex-1 flex-col">
+          <AdminTopBar onOpenMobileNav={() => setMobileNavOpen(true)} />
+          <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 md:px-8">{children}</main>
+        </div>
+      </div>
     </>
   );
 }
