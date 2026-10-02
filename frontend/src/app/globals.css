@@ -138,6 +138,60 @@ body {
   }
 }
 
+/* Desktop split-screen entrance (page load only, no JS mount-state needed —
+   these just play once when the element first appears in the DOM) and the
+   toggle-triggered replays below. Transform is deliberately left out of
+   auth-overlay-in: that panel's position is already driven by `mode` via a
+   separate Tailwind transition, and animating the same property from two
+   places at once would fight itself. */
+@keyframes auth-overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Replayed on every toggle (className added/removed, not remounted — see
+   AuthCard.tsx) so the overlay's headline/copy/button arrive with the slide
+   instead of snapping to the new copy mid-transition. */
+@keyframes auth-overlay-text {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes auth-form-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Replayed on the side the overlay just uncovered (same class-toggle
+   technique as auth-overlay-text) so the revealed form arrives with its own
+   small motion instead of having just been sitting there the whole time. */
+@keyframes auth-reveal {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .animate-admin-panel-in {
     animation: admin-panel-in 250ms cubic-bezier(0.16, 1, 0.3, 1);
@@ -153,5 +207,17 @@ body {
   }
   .animate-auth-fade {
     animation: auth-fade 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .animate-auth-overlay-in {
+    animation: auth-overlay-in 700ms ease-out;
+  }
+  .animate-auth-overlay-text {
+    animation: auth-overlay-text 400ms cubic-bezier(0.16, 1, 0.3, 1) 150ms both;
+  }
+  .animate-auth-form-in {
+    animation: auth-form-in 600ms cubic-bezier(0.16, 1, 0.3, 1) 100ms both;
+  }
+  .animate-auth-reveal {
+    animation: auth-reveal 400ms cubic-bezier(0.16, 1, 0.3, 1);
   }
 }

@@ -113,9 +113,13 @@ docker run --name vendora-postgres \
   -e POSTGRES_USER=vendora \
   -e POSTGRES_PASSWORD=vendora_dev_password \
   -e POSTGRES_DB=vendora \
-  -p 5434:5432 \
+  -p 5436:5432 \
   -d postgres:17
 ```
+
+Choose a port that is free on your machine. If another project's PostgreSQL already
+holds it, `docker run` fails to bind the port — and a container started without `-p`
+at all leaves the app talking to whatever else owns that port instead.
 
 Then, from `backend/`:
 

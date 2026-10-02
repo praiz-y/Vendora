@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { ArrowRightIcon } from "@/components/icons";
 import { Button } from "@/components/ui/Button";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { PasswordField } from "@/components/ui/PasswordField";
@@ -25,8 +26,8 @@ function LoginFields({ from }: { from: string | null }) {
   }
 
   return (
-    <form className="flex w-full max-w-sm flex-col gap-4" onSubmit={handleSubmit}>
-      <h1 className="text-xl font-semibold text-heading">Log in to Vendora</h1>
+    <form className="mx-auto flex w-full max-w-sm flex-col gap-4" onSubmit={handleSubmit}>
+      <h1 className="text-center text-xl font-semibold text-heading md:text-left">Log in to Vendora</h1>
       <TextField
         label="Email or username"
         name="identifier"
@@ -70,8 +71,8 @@ function RegisterFields({ from }: { from: string | null }) {
   }
 
   return (
-    <form className="flex w-full max-w-sm flex-col gap-4" onSubmit={handleSubmit}>
-      <div>
+    <form className="mx-auto flex w-full max-w-sm flex-col gap-4" onSubmit={handleSubmit}>
+      <div className="text-center md:text-left">
         <h1 className="text-xl font-semibold text-heading">Create your Vendora account</h1>
         <p className="mt-1 text-sm text-muted">Every account starts as a buyer.</p>
       </div>
@@ -110,74 +111,86 @@ export function AuthCard() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-surface-alt px-4 py-10">
-      <div className="w-full max-w-3xl overflow-hidden rounded-2xl bg-surface shadow-xl">
-        {/* Desktop: split card, sliding overlay */}
-        <div className="relative hidden h-[560px] md:block">
-          <div className="absolute inset-y-0 left-0 flex w-1/2 items-center justify-center p-10">
-            <LoginFields from={from} />
-          </div>
-          <div className="absolute inset-y-0 right-0 flex w-1/2 items-center justify-center p-10">
-            <RegisterFields from={from} />
-          </div>
-          <div
-            className={`absolute inset-y-0 left-0 flex w-1/2 flex-col items-center justify-center gap-4 bg-primary px-10 text-center text-white transition-transform duration-500 ease-in-out motion-reduce:transition-none ${
-              mode === "login" ? "translate-x-full" : "translate-x-0"
-            }`}
-          >
+    <main className="relative min-h-screen overflow-hidden bg-surface-alt">
+      {/* Desktop: true full-viewport split, no floating card — each half
+          fills its 50% of the screen edge to edge, sliding overlay moves
+          between them the same as before, just at full scale now. */}
+      <div className="relative hidden h-screen md:block">
+        <div
+          className={`absolute inset-y-0 left-0 flex w-1/2 items-center justify-center p-10 animate-auth-form-in ${
+            mode === "login" ? "animate-auth-reveal" : ""
+          }`}
+        >
+          <LoginFields from={from} />
+        </div>
+        <div
+          className={`absolute inset-y-0 right-0 flex w-1/2 items-center justify-center p-10 animate-auth-form-in ${
+            mode === "register" ? "animate-auth-reveal" : ""
+          }`}
+        >
+          <RegisterFields from={from} />
+        </div>
+        <div
+          className={`absolute inset-y-0 left-0 flex w-1/2 flex-col items-center justify-center gap-4 bg-primary px-16 text-center text-white transition-transform duration-500 ease-in-out motion-reduce:transition-none animate-auth-overlay-in ${
+            mode === "login" ? "translate-x-full" : "translate-x-0"
+          }`}
+        >
+          <div key={mode} className="flex flex-col items-center gap-4 animate-auth-overlay-text">
             {mode === "login" ? (
               <>
-                <h2 className="text-2xl font-bold">New here?</h2>
-                <p className="text-sm text-white/85">
+                <h2 className="text-3xl font-bold">New here?</h2>
+                <p className="max-w-xs text-sm text-white/85">
                   Create an account and start shopping products from independent sellers across Vendora.
                 </p>
                 <button
                   type="button"
                   onClick={() => switchMode("register")}
-                  className="rounded-md border border-white px-6 py-2 text-sm font-semibold hover:bg-white hover:text-primary"
+                  className="group flex items-center gap-2 rounded-md border border-white px-8 py-2.5 text-sm font-semibold hover:bg-white hover:text-primary"
                 >
                   Sign Up
+                  <ArrowRightIcon className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                 </button>
               </>
             ) : (
               <>
-                <h2 className="text-2xl font-bold">Welcome back</h2>
-                <p className="text-sm text-white/85">Log in to pick up your cart, orders, and wishlist.</p>
+                <h2 className="text-3xl font-bold">Welcome back</h2>
+                <p className="max-w-xs text-sm text-white/85">Log in to pick up your cart, orders, and wishlist.</p>
                 <button
                   type="button"
                   onClick={() => switchMode("login")}
-                  className="rounded-md border border-white px-6 py-2 text-sm font-semibold hover:bg-white hover:text-primary"
+                  className="group flex items-center gap-2 rounded-md border border-white px-8 py-2.5 text-sm font-semibold hover:bg-white hover:text-primary"
                 >
                   Log In
+                  <ArrowRightIcon className="h-4 w-4 transition-transform group-hover:translate-x-1" />
                 </button>
               </>
             )}
           </div>
         </div>
+      </div>
 
-        {/* Mobile: single column, no split panel */}
-        <div className="p-6 md:hidden">
-          <div key={mode} className="animate-auth-fade">
-            {mode === "login" ? <LoginFields from={from} /> : <RegisterFields from={from} />}
-          </div>
-          <p className="mt-6 text-center text-sm text-muted">
-            {mode === "login" ? (
-              <>
-                Don&apos;t have an account?{" "}
-                <button type="button" onClick={() => switchMode("register")} className="font-medium text-heading underline">
-                  Sign up
-                </button>
-              </>
-            ) : (
-              <>
-                Already have an account?{" "}
-                <button type="button" onClick={() => switchMode("login")} className="font-medium text-heading underline">
-                  Log in
-                </button>
-              </>
-            )}
-          </p>
+      {/* Mobile: single column, full height, no card chrome */}
+      <div className="flex min-h-screen flex-col justify-center p-6 md:hidden">
+        <div key={mode} className="animate-auth-fade">
+          {mode === "login" ? <LoginFields from={from} /> : <RegisterFields from={from} />}
         </div>
+        <p className="mt-6 text-center text-sm text-muted">
+          {mode === "login" ? (
+            <>
+              Don&apos;t have an account?{" "}
+              <button type="button" onClick={() => switchMode("register")} className="font-medium text-heading underline">
+                Sign up
+              </button>
+            </>
+          ) : (
+            <>
+              Already have an account?{" "}
+              <button type="button" onClick={() => switchMode("login")} className="font-medium text-heading underline">
+                Log in
+              </button>
+            </>
+          )}
+        </p>
       </div>
     </main>
   );

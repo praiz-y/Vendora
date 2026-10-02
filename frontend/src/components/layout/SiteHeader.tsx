@@ -88,21 +88,26 @@ export function SiteHeader() {
         </div>
       </div>
 
-      {/* Mobile top bar */}
-      <div className="flex items-center justify-between px-4 py-3 md:hidden">
-        <Link href="/" className="text-lg font-semibold tracking-tight text-primary">
+      {/* Mobile top bar — same 3-column trick as desktop (empty/icon slots
+          either side, logo centered in the middle) so Vendora stays
+          centered whether or not the search icon is showing. */}
+      <div className="grid grid-cols-[1fr_auto_1fr] items-center px-4 py-3 md:hidden">
+        <span />
+        <Link href="/" className="justify-self-center text-lg font-semibold tracking-tight text-primary">
           Vendora
         </Link>
-        {showSearchIcon && (
-          <button
-            type="button"
-            onClick={() => setSearchOpen(true)}
-            aria-label="Search products"
-            className="text-body hover:text-primary"
-          >
-            <SearchIcon className="h-5 w-5" />
-          </button>
-        )}
+        <div className="justify-self-end">
+          {showSearchIcon && (
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              aria-label="Search products"
+              className="text-body hover:text-primary"
+            >
+              <SearchIcon className="h-5 w-5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {searchOpen && <SearchOverlay onClose={() => setSearchOpen(false)} />}

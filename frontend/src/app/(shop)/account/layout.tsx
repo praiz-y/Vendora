@@ -29,7 +29,7 @@ export default function AccountLayout({ children }: { children: React.ReactNode 
         <AccountSidebar />
         <div className="min-w-0 flex-1">
           <AccountMobileTabs />
-          {children}
+          <div className="px-6 py-6 md:px-16 md:py-10">{children}</div>
         </div>
       </div>
     </>

@@ -1,5 +1,5 @@
 import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
-import { Footer } from "@/components/layout/Footer";
+import { ConditionalFooter } from "@/components/layout/ConditionalFooter";
 import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 
@@ -16,11 +16,12 @@ export default function ShopLayout({ children }: { children: React.ReactNode }) 
           desktop, where that bar doesn't render. */}
       <div className="flex flex-1 flex-col pb-16 md:pb-0">
         <main className="flex-1">{children}</main>
-        {/* Site-wide, not homepage-only — Part 3 describes it as the
-            homepage's last section, but every real e-commerce footer
-            appears on every page; (shop)/layout.tsx is already the shared
-            shell every buyer-facing page renders through. */}
-        <Footer />
+        {/* Site-wide by default (Part 3 describes it as the homepage's last
+            section, but most pages through this shared shell show it too) —
+            except utility/app-like pages that can legitimately be near-empty
+            (Wishlist, Cart, Notifications, Account), which skip it entirely
+            rather than have it crowd sparse content (Overhaul Phase 16). */}
+        <ConditionalFooter />
       </div>
       <MobileBottomNav />
     </div>

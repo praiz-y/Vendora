@@ -40,4 +40,6 @@ backend/prisma/*.db
 # Local-only project notes (not part of the tracked repo)
 .ai/
 docs/
+.claude/
+.impeccable/
 thrill1.txt
