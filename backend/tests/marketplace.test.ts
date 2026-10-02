@@ -302,6 +302,79 @@ describe("GET /api/v1/marketplace/products", () => {
       expect(res.body.data.meta.total).toBe(2);
     });
   });
+
+  // Overhaul Phase 15's Products page sidebar. `minRating` filters on the
+  // same computed average `rating_desc` ranks by, but deliberately has no
+  // review-count floor: the user asked for this threshold explicitly, so a
+  // single honest review is enough to qualify — unlike the algorithmic Top
+  // Rated row, where the floor exists to stop one lucky review outranking
+  // a product with hundreds.
+  describe("filter=minRating", () => {
+    it("keeps only products at or above the threshold, and drops unreviewed ones", async () => {
+      const store = await createStore();
+      const category = await createCategory();
+
+      const fiveStar = await createProduct(store.id, category.id, { name: "Five Star" });
+      await createDeliveredReview(fiveStar.id, store.id, 5);
+
+      const threeStar = await createProduct(store.id, category.id, { name: "Three Star" });
+      await createDeliveredReview(threeStar.id, store.id, 3);
+
+      const unreviewed = await createProduct(store.id, category.id, { name: "Unreviewed" });
+      void unreviewed;
+
+      const res = await request(app).get("/api/v1/marketplace/products?minRating=4");
+      expect(res.status).toBe(200);
+      expect(res.body.data.products.map((p: { id: string }) => p.id)).toEqual([fiveStar.id]);
+      expect(res.body.data.meta.total).toBe(1);
+    });
+
+    it("is inclusive at the exact threshold", async () => {
+      const store = await createStore();
+      const category = await createCategory();
+
+      const exactlyFour = await createProduct(store.id, category.id, { name: "Exactly Four" });
+      for (let i = 0; i < 4; i += 1) await createDeliveredReview(exactlyFour.id, store.id, 4);
+
+      const justBelow = await createProduct(store.id, category.id, { name: "Just Below" });
+      await createDeliveredReview(justBelow.id, store.id, 4);
+      await createDeliveredReview(justBelow.id, store.id, 3);
+
+      const res = await request(app).get("/api/v1/marketplace/products?minRating=4");
+      expect(res.body.data.products.map((p: { id: string }) => p.id)).toEqual([exactlyFour.id]);
+    });
+
+    // The load-bearing case: `price_asc` on its own takes the plain Prisma
+    // path at marketplace.service.ts:195. Only `minRating` being present
+    // forces the ranked path, so a passing assertion here proves the filter
+    // is applied *before* pagination rather than to the visible page only.
+    it("applies under a non-rating sort, which alone would not use the computed path", async () => {
+      const store = await createStore();
+      const category = await createCategory();
+
+      const cheapHighRated = await createProduct(store.id, category.id, { name: "Cheap High Rated", price: 500 });
+      await createDeliveredReview(cheapHighRated.id, store.id, 5);
+
+      const priceyHighRated = await createProduct(store.id, category.id, { name: "Pricey High Rated", price: 5000 });
+      await createDeliveredReview(priceyHighRated.id, store.id, 4);
+
+      const cheapestLowRated = await createProduct(store.id, category.id, { name: "Cheapest Low Rated", price: 100 });
+      await createDeliveredReview(cheapestLowRated.id, store.id, 2);
+
+      const res = await request(app).get("/api/v1/marketplace/products?minRating=4&sort=price_asc");
+      expect(res.status).toBe(200);
+      expect(res.body.data.products.map((p: { id: string }) => p.id)).toEqual([cheapHighRated.id, priceyHighRated.id]);
+      expect(res.body.data.meta.total).toBe(2);
+    });
+
+    it("rejects a threshold outside the 1-5 rating range", async () => {
+      const tooHigh = await request(app).get("/api/v1/marketplace/products?minRating=6");
+      const tooLow = await request(app).get("/api/v1/marketplace/products?minRating=0");
+
+      expect(tooHigh.status).toBe(422);
+      expect(tooLow.status).toBe(422);
+    });
+  });
 });
 
 describe("GET /api/v1/marketplace/products/:slug", () => {

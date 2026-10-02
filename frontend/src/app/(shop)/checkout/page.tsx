@@ -103,7 +103,7 @@ export default function CheckoutPage() {
     <div className="mx-auto flex max-w-2xl flex-col gap-6 px-4 py-8">
       <h1 className="text-xl font-semibold">Checkout</h1>
 
-      <div className="rounded-md border border-black/10 p-4 dark:border-white/10">
+      <div className="rounded-md border border-black/10 p-4">
         <h2 className="mb-3 text-sm font-semibold text-foreground/70">Order Summary</h2>
         <ul className="flex flex-col gap-2">
           {cart!.items.map((item) => (
@@ -115,7 +115,7 @@ export default function CheckoutPage() {
             </li>
           ))}
         </ul>
-        <div className="mt-3 flex justify-between border-t border-black/10 pt-3 text-sm font-semibold dark:border-white/10">
+        <div className="mt-3 flex justify-between border-t border-black/10 pt-3 text-sm font-semibold">
           <span>Subtotal (shipping calculated per seller)</span>
           <span>{formatNaira(grandTotal)}</span>
         </div>

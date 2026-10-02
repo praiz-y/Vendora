@@ -115,7 +115,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
       {archiveProduct.isError && <FormMessage type="error">{getErrorMessage(archiveProduct.error)}</FormMessage>}
 
       {product.type === "DIGITAL" && (
-        <div className="max-w-lg rounded-md border border-black/10 p-4 text-sm dark:border-white/10">
+        <div className="max-w-lg rounded-md border border-black/10 p-4 text-sm">
           <p className="font-medium">Digital file</p>
           <p className="mt-1 text-foreground/60">
             Latest version: {product.digitalVersions[0]?.version ?? "—"} ({product.digitalVersions[0]?.fileType})

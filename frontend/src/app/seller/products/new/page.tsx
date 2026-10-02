@@ -89,7 +89,7 @@ export default function NewProductPage() {
         <ProductFieldset type={type} values={values} onChange={handleChange} images={images} onImagesChange={setImages} />
 
         {type === "DIGITAL" && (
-          <div className="flex flex-col gap-4 rounded-md border border-black/10 p-4 dark:border-white/10">
+          <div className="flex flex-col gap-4 rounded-md border border-black/10 p-4">
             <p className="text-xs text-foreground/50">
               No file storage integration yet — provide a reference for the first version of this file.
             </p>

@@ -8,7 +8,7 @@ import { formatNaira } from "@/lib/currency";
 
 function StatCard({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="rounded-md border border-black/10 p-4 dark:border-white/10">
+    <div className="rounded-md border border-black/10 p-4">
       <p className="text-xs font-medium uppercase tracking-wide text-foreground/50">{label}</p>
       <p className="mt-1 text-2xl font-semibold">{value}</p>
     </div>
@@ -19,10 +19,10 @@ function PendingActionRow({ label, count, href }: { label: string; count: number
   return (
     <Link
       href={href}
-      className="flex items-center justify-between rounded-md border border-black/10 p-3 text-sm hover:bg-black/5 dark:border-white/10 dark:hover:bg-white/5"
+      className="flex items-center justify-between rounded-md border border-black/10 p-3 text-sm hover:bg-black/5"
     >
       <span>{label}</span>
-      <span className={`rounded px-2 py-0.5 text-xs font-medium ${count > 0 ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" : "bg-black/10 text-foreground/50 dark:bg-white/10"}`}>
+      <span className={`rounded px-2 py-0.5 text-xs font-medium ${count > 0 ? "bg-amber-500/10 text-amber-600" : "bg-black/10 text-foreground/50"}`}>
         {count}
       </span>
     </Link>

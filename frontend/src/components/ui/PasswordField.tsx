@@ -27,7 +27,7 @@ export const PasswordField = forwardRef<HTMLInputElement, PasswordFieldProps>(fu
           className={`w-full rounded-md border px-3 py-2 pr-16 text-sm outline-none transition-colors focus:ring-2 focus:ring-offset-0 ${
             error
               ? "border-red-500 focus:ring-red-400"
-              : "border-black/15 focus:ring-black/20 dark:border-white/20 dark:focus:ring-white/30"
+              : "border-black/15 focus:ring-black/20"
           } bg-transparent ${className}`}
           aria-invalid={!!error}
           aria-describedby={error ? `${fieldId}-error` : undefined}

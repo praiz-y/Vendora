@@ -9,6 +9,12 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.join(__dirname),
   },
+  // Proxy the API through this app's own origin so auth cookies are
+  // first-party in production (see src/config/env.ts).
+  async rewrites() {
+    const backendUrl = (process.env.BACKEND_URL ?? "http://localhost:4000").replace(/\/+$/, "");
+    return [{ source: "/api/:path*", destination: `${backendUrl}/api/:path*` }];
+  },
   // Phase 15 hardening: baseline security headers on every response. No
   // Content-Security-Policy here — this app's pages already run inline
   // styles/no third-party scripts, but a CSP tight enough to matter needs

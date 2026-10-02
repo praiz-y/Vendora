@@ -4,10 +4,7 @@ Vendora is a multi-vendor e-commerce marketplace portfolio project. Buyers can s
 products from many independent sellers in a single checkout, and any buyer can apply
 to become a seller and run their own store within the marketplace.
 
-This repository is being built incrementally, phase by phase. See
-[`.ai/project-context.md`](.ai/project-context.md) for the current development phase
-and architectural decisions, and [`.ai/reports/`](.ai/reports/) for a per-phase log of
-what has actually been implemented and verified.
+This repository is being built incrementally, phase by phase.
 
 ## Tech Stack
 
@@ -22,8 +19,9 @@ what has actually been implemented and verified.
 - Node.js + Express
 - TypeScript
 - Zod (request validation)
-- JWT access tokens + database-backed, rotating refresh tokens in an
-  `HttpOnly` cookie (see [`docs/architecture/authentication-architecture.md`](docs/architecture/authentication-architecture.md))
+- JWT access tokens + database-backed refresh tokens in an `HttpOnly` cookie,
+  rotated on every use with reuse detection (a replayed token invalidates the
+  whole session)
 
 **Database**
 - PostgreSQL
@@ -81,7 +79,8 @@ Frontend (`frontend/.env.local`):
 
 | Variable | Description |
 | --- | --- |
-| `NEXT_PUBLIC_API_URL` | Base URL of the backend API, e.g. `http://localhost:4000` |
+| `BACKEND_URL` | Backend API URL, e.g. `http://localhost:4000`. Server-only: the browser calls `/api/*` on the frontend's own origin and Next.js rewrites it here, so auth cookies stay first-party |
+| `NEXT_PUBLIC_SITE_URL` | The frontend's public URL, used for canonical URLs, `sitemap.xml` and `robots.txt` |
 
 Backend (`backend/.env`):
 
@@ -98,8 +97,8 @@ Backend (`backend/.env`):
 | `CLOUDINARY_*` | Reserved for image storage integration |
 | `PAYMENT_*` | Reserved for the payment provider integration |
 
-See [`docs/architecture/authentication-architecture.md`](docs/architecture/authentication-architecture.md)
-for how these are used.
+`JWT_ACCESS_SECRET` and `JWT_REFRESH_SECRET` have no fallback in production —
+the backend refuses to start without them.
 
 Never commit `.env` or `.env.local` files — only the `.example` versions are tracked.
 
@@ -153,7 +152,7 @@ npm run dev:backend    # Express on http://localhost:4000
 Once both are running:
 - Frontend: http://localhost:3000
 - Backend health check: http://localhost:4000/api/v1/health
-- Frontend → backend integration check: http://localhost:3000/dev/health
+- Frontend → backend integration check: http://localhost:3000/dev/health (dev only — 404 in production builds)
 - Register / log in: http://localhost:3000/register, http://localhost:3000/login
 - Account (requires login): http://localhost:3000/account
 - Become a seller (requires login): http://localhost:3000/account/selling
@@ -183,3 +182,23 @@ npm test
 `backend/.env.test` (gitignored, already configured for the container above)
 supplies the test database URL and JWT secrets automatically when `npm test`
 runs.
+
+## Deployment
+
+The frontend deploys to Vercel; the API and PostgreSQL run on a separate host.
+The browser never calls the API directly: `next.config.ts` rewrites `/api/*` on
+the frontend's origin to `BACKEND_URL`, so auth cookies stay first-party and
+`SameSite=Lax` keeps working across the two domains.
+
+**Frontend (Vercel)** — Root Directory `frontend`, with `BACKEND_URL` and
+`NEXT_PUBLIC_SITE_URL` set. `BACKEND_URL` is read at build time, so redeploy
+after changing it.
+
+**Backend** — build with `npm run build` (runs `prisma generate`), apply
+migrations with `npm run prisma:deploy`, start with `npm start`. Requires
+`NODE_ENV=production`, `DATABASE_URL`, `JWT_ACCESS_SECRET`,
+`JWT_REFRESH_SECRET`, and `FRONTEND_URL` set to the exact Vercel URL (no
+trailing slash).
+
+The seed script wipes every table, so it refuses to run when
+`NODE_ENV=production` unless `ALLOW_PRODUCTION_SEED=true` is set explicitly.

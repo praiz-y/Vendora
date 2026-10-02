@@ -657,6 +657,16 @@ async function main() {
   });
 }
 
+// resetData() wipes every table, so refuse to run against production unless
+// explicitly forced. Guards against a host running `prisma db seed` on deploy.
+if (process.env.NODE_ENV === "production" && process.env.ALLOW_PRODUCTION_SEED !== "true") {
+  console.error(
+    "Refusing to seed: NODE_ENV=production and this script deletes all data. " +
+      "Set ALLOW_PRODUCTION_SEED=true to override.",
+  );
+  process.exit(1);
+}
+
 main()
   .catch((error) => {
     console.error(error);
