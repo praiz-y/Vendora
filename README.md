@@ -4,7 +4,44 @@ Vendora is a multi-vendor e-commerce marketplace portfolio project. Buyers can s
 products from many independent sellers in a single checkout, and any buyer can apply
 to become a seller and run their own store within the marketplace.
 
-This repository is being built incrementally, phase by phase.
+**Live demo:** https://vendora-chi-eight.vercel.app
+
+> The API runs on a free Render instance that sleeps when idle — the first
+> request after a quiet spell can take up to a minute while it wakes up.
+
+### Demo accounts
+
+| Role | Email | Password |
+| --- | --- | --- |
+| Buyer | `buyer@vendora.test` | `VendoraDev123!` |
+| Seller | `seller1@vendora.test` | `VendoraDev123!` |
+
+The demo is seeded with ~120 products across 8 stores, plus buyers, orders, and
+reviews. Product names, descriptions, and photos come from
+[DummyJSON](https://dummyjson.com), a free fake-data API.
+
+Payments are simulated — no real card is charged. The checkout page has a
+"simulate failure" toggle to demonstrate the failed-payment and retry flow.
+
+## Features
+
+**Buyers**
+- Browse and search products across stores, with category, rating, and price filters
+- Guest cart that carries over on login; wishlist
+- One checkout across multiple sellers — split into per-seller orders behind the scenes
+- Stock reserved during checkout so items can't be oversold
+- Physical and digital products — digital purchases land in a download library
+- Order history, refund requests, reviews, product reports, and in-app notifications
+
+**Sellers**
+- Apply to sell; an admin approves the application before the store goes live
+- Manage products (images via Cloudinary), orders, reviews, and store profile
+- Sales analytics dashboard
+
+**Admins**
+- Review seller applications, product listings, product reports, and refunds
+- Manage users, categories, homepage hero slides, and the site announcement bar
+- Audit log of admin actions
 
 ## Tech Stack
 
@@ -27,10 +64,13 @@ This repository is being built incrementally, phase by phase.
 - PostgreSQL
 - Prisma ORM
 
+**Hosting**
+- Vercel (frontend), Render (API), Neon (PostgreSQL)
+
 **Planned integrations** (not yet fully wired in)
-- Cloudinary (image storage)
-- A payment provider for NGN payments (provider-agnostic architecture)
-- An email provider
+- Cloudinary (image storage — upload signing is built, needs credentials)
+- A payment provider for NGN payments (provider-agnostic architecture; currently simulated)
+- An email provider (password reset links are only logged today)
 
 ## Repository Structure
 
@@ -38,8 +78,6 @@ This repository is being built incrementally, phase by phase.
 vendora/
 ├── frontend/       # Next.js application
 ├── backend/        # Express API
-├── docs/           # Project documentation
-├── .ai/            # AI development context and phase reports
 ├── .gitignore
 ├── README.md
 └── package.json    # Root workspace scripts (runs frontend + backend together)
@@ -185,7 +223,8 @@ runs.
 
 ## Deployment
 
-The frontend deploys to Vercel; the API and PostgreSQL run on a separate host.
+The live demo runs the frontend on Vercel, the API on Render, and PostgreSQL
+on Neon.
 The browser never calls the API directly: `next.config.ts` rewrites `/api/*` on
 the frontend's origin to `BACKEND_URL`, so auth cookies stay first-party and
 `SameSite=Lax` keeps working across the two domains.
@@ -194,11 +233,18 @@ the frontend's origin to `BACKEND_URL`, so auth cookies stay first-party and
 `NEXT_PUBLIC_SITE_URL` set. `BACKEND_URL` is read at build time, so redeploy
 after changing it.
 
-**Backend** — build with `npm run build` (runs `prisma generate`), apply
-migrations with `npm run prisma:deploy`, start with `npm start`. Requires
+**Backend (Render)** — Root Directory `backend`, Build Command
+`npm ci --include=dev && npm run build` (`--include=dev` keeps Prisma and
+TypeScript installed under `NODE_ENV=production`), Start Command
+`npm run prisma:deploy && npm start` (applies pending migrations on each
+deploy), Health Check Path `/api/v1/health`. Requires
 `NODE_ENV=production`, `DATABASE_URL`, `JWT_ACCESS_SECRET`,
 `JWT_REFRESH_SECRET`, and `FRONTEND_URL` set to the exact Vercel URL (no
-trailing slash).
+trailing slash). `PORT` is provided by Render.
+
+**Database (Neon)** — use the direct connection string (not the `-pooler`
+one) as `DATABASE_URL`, keeping `?sslmode=require`.
 
 The seed script wipes every table, so it refuses to run when
-`NODE_ENV=production` unless `ALLOW_PRODUCTION_SEED=true` is set explicitly.
+`NODE_ENV=production` unless `ALLOW_PRODUCTION_SEED=true` is set explicitly. Set `SEED_ADMIN_PASSWORD` when seeding the
+public demo so the admin account doesn't share the published demo password.

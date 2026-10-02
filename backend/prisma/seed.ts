@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedDemoData } from "./demoData";
 
 const prisma = new PrismaClient();
 
@@ -8,6 +9,11 @@ const prisma = new PrismaClient();
 // SEED_USER_PASSWORD if you want something else locally. Never used outside
 // this seed script, and never a real account.
 const SEED_PASSWORD = process.env.SEED_USER_PASSWORD ?? "VendoraDev123!";
+
+// The admin account gets its own password when SEED_ADMIN_PASSWORD is set —
+// for seeding the public demo, where the shared password above is published
+// in the README for the buyer/seller demo accounts.
+const SEED_ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD;
 
 async function resetData() {
   // Deletes in FK-safe (child-first) order. This is a dev-only database — see
@@ -42,10 +48,15 @@ async function resetData() {
   await prisma.user.deleteMany();
 }
 
+// Original hand-written products are backdated so the demo catalog (which
+// has real photos) is what shows under "newest".
+const LONG_AGO = new Date(Date.now() - 160 * 24 * 60 * 60 * 1000);
+
 async function main() {
   await resetData();
 
   const passwordHash = await bcrypt.hash(SEED_PASSWORD, 10);
+  const adminPasswordHash = SEED_ADMIN_PASSWORD ? await bcrypt.hash(SEED_ADMIN_PASSWORD, 10) : passwordHash;
 
   // --- Users --------------------------------------------------------------
 
@@ -55,7 +66,7 @@ async function main() {
       lastName: "Okoro",
       username: "admin_ada",
       email: "admin@vendora.test",
-      passwordHash,
+      passwordHash: adminPasswordHash,
       role: "ADMIN",
     },
   });
@@ -174,9 +185,12 @@ async function main() {
     prisma.category.create({ data: { name: "Home & Living", slug: "home-living" } }),
     prisma.category.create({ data: { name: "Digital Downloads", slug: "digital-downloads" } }),
   ]);
-  await Promise.all([
+  const [fashion, , watchesJewellery, beauty, sportsOutdoors] = await Promise.all([
     prisma.category.create({ data: { name: "Fashion", slug: "fashion" } }),
     prisma.category.create({ data: { name: "Books & Media", slug: "books-media" } }),
+    prisma.category.create({ data: { name: "Watches & Jewellery", slug: "watches-jewellery" } }),
+    prisma.category.create({ data: { name: "Beauty & Personal Care", slug: "beauty" } }),
+    prisma.category.create({ data: { name: "Sports & Outdoors", slug: "sports-outdoors" } }),
   ]);
 
   // --- Products ---------------------------------------------------------------
@@ -187,6 +201,7 @@ async function main() {
       categoryId: electronics.id,
       name: "Wireless Earbuds Pro",
       slug: "wireless-earbuds-pro",
+      createdAt: LONG_AGO,
       description: "Noise-cancelling wireless earbuds with 30-hour battery life.",
       type: "PHYSICAL",
       price: 25000,
@@ -275,6 +290,7 @@ async function main() {
       categoryId: digitalDownloads.id,
       name: "The Vendora Handbook (E-book)",
       slug: "the-vendora-handbook-ebook",
+      createdAt: LONG_AGO,
       description: "A practical guide to running a marketplace store.",
       type: "DIGITAL",
       price: 3500,
@@ -298,6 +314,7 @@ async function main() {
       categoryId: homeAndLiving.id,
       name: "Handwoven Tote Bag",
       slug: "handwoven-tote-bag",
+      createdAt: LONG_AGO,
       description: "Locally handwoven cotton tote bag.",
       type: "PHYSICAL",
       price: 8000,
@@ -645,6 +662,22 @@ async function main() {
         updatedById: admin.id,
       },
     ],
+  });
+
+  // --- Bulk demo catalog (stores, buyers, products, orders, reviews) --------
+
+  await seedDemoData(prisma, {
+    passwordHash,
+    admin,
+    ariaStore: sellerOneStore,
+    categories: {
+      electronics: electronics.id,
+      "home-living": homeAndLiving.id,
+      fashion: fashion.id,
+      "watches-jewellery": watchesJewellery.id,
+      beauty: beauty.id,
+      "sports-outdoors": sportsOutdoors.id,
+    },
   });
 
   console.log("Seed complete.");
