@@ -1,6 +1,7 @@
 import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
 import { ConditionalFooter } from "@/components/layout/ConditionalFooter";
 import { MobileBottomNav } from "@/components/layout/MobileBottomNav";
+import { ServerWakeNotice } from "@/components/layout/ServerWakeNotice";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 
 // Route group — doesn't affect URLs (/, /products, /cart, etc. keep their
@@ -24,6 +25,7 @@ export default function ShopLayout({ children }: { children: React.ReactNode }) 
         <ConditionalFooter />
       </div>
       <MobileBottomNav />
+      <ServerWakeNotice />
     </div>
   );
 }

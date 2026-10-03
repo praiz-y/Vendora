@@ -1,0 +1,18 @@
+name: Keep Render Awake
+
+on:
+  schedule:
+    # Every 12 minutes — inside Render free tier's ~15 min idle-sleep window.
+    # A sleeping API means the live demo's product and store sections load
+    # empty for the first visitor after a quiet spell.
+    - cron: '*/12 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping /api/v1/health
+        # A cold start can take ~50s, so allow time and a couple of retries
+        # rather than failing the run on the wake-up request itself.
+        run: curl -sf --max-time 120 --retry 2 --retry-delay 10 https://vendora-18j9.onrender.com/api/v1/health
