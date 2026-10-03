@@ -615,15 +615,15 @@ async function main() {
 
   // --- Hero slides (Overhaul Phase 5) ----------------------------------------
 
-  // Placeholder content — no admin screen exists yet to edit these (Phase
-  // 11), so the seed is what gives the homepage carousel something to show
-  // during development. Deliberately not claiming "secure payments" (no
+  // Banner photos are Unsplash images served by Lorem Picsum
+  // (picsum.photos/id/N — stable ids, free to use). Admins can swap them
+  // at /admin/hero-slides. Deliberately not claiming "secure payments" (no
   // provider finalized yet, per Part 3's Why-Shop-on-Vendora note).
   await prisma.heroSlide.createMany({
     data: [
       {
         position: 1,
-        imageUrl: "https://placehold.co/1600x600/EB4600/FFFFEB?text=Vendora",
+        imageUrl: "https://picsum.photos/id/195/1600/600",
         headline: "Shop independent sellers, all in one place",
         text: "Discover handmade goods, electronics, and digital products from sellers across Vendora.",
         ctaLabel: "Browse products",
@@ -633,7 +633,7 @@ async function main() {
       },
       {
         position: 2,
-        imageUrl: "https://placehold.co/1600x600/A2C2BE/1D1D1D?text=Electronics",
+        imageUrl: "https://picsum.photos/id/26/1600/600",
         headline: "Top-rated electronics",
         text: "From earbuds to smart watches — browse Vendora's highest-rated electronics.",
         ctaLabel: "Shop Electronics",
@@ -643,7 +643,7 @@ async function main() {
       },
       {
         position: 3,
-        imageUrl: "https://placehold.co/1600x600/1D1D1D/FFFFEB?text=Digital+Downloads",
+        imageUrl: "https://picsum.photos/id/367/1600/600",
         headline: "Instant digital downloads",
         text: "E-books, printables, and more — delivered straight to your library after checkout.",
         ctaLabel: "Explore digital products",
@@ -653,7 +653,7 @@ async function main() {
       },
       {
         position: 4,
-        imageUrl: "https://placehold.co/1600x600/FFF0E9/EB4600?text=Sell+on+Vendora",
+        imageUrl: "https://picsum.photos/id/428/1600/600",
         headline: "Open your own store",
         text: "Every seller application and product listing is reviewed before going live — join a vetted marketplace.",
         ctaLabel: "Become a seller",
