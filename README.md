@@ -9,6 +9,12 @@ to become a seller and run their own store within the marketplace.
 > The API runs on a free Render instance that sleeps when idle — the first
 > request after a quiet spell can take up to a minute while it wakes up.
 
+![Browse products: filters by category, type, and price across all stores](screenshots/products.png)
+
+| Product page | Homepage |
+| --- | --- |
+| ![Product page with image gallery, rating, shipping, and add to cart](screenshots/product-detail.png) | ![Homepage hero carousel and shop-by-category grid](screenshots/home.jpg) |
+
 ### Demo accounts
 
 | Role | Email | Password |
@@ -78,6 +84,7 @@ Payments are simulated — no real card is charged. The checkout page has a
 vendora/
 ├── frontend/       # Next.js application
 ├── backend/        # Express API
+├── screenshots/    # Images used in this README
 ├── .gitignore
 ├── README.md
 └── package.json    # Root workspace scripts (runs frontend + backend together)
